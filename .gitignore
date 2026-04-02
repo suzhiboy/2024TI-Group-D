@@ -1,0 +1,53 @@
+# --- 编译产物 ---
+**/Debug/
+**/Release/
+**/OBJ/
+**/Objects/
+**/Listings/
+**/build/
+**/bin/
+**/genlibs/
+*.o
+*.obj
+*.d
+*.out
+*.map
+*.hex
+*.bin
+*.axf
+*.elf
+*.i
+*.s
+*.crf
+*.lnp
+*.dep
+*.bak
+*.__i
+
+# --- IDE 临时文件与本地配置 ---
+.settings/
+.launches/
+.externalToolBuilders/
+*.uvguix.*
+*.uvoptx
+*.uvgui.*
+*.jlink
+*.ucf
+*.orig
+*.tmp
+*.log
+*.pbi
+*.pbd
+*.browse
+*.pbw
+
+# --- 系统文件 ---
+[Tt]humbs.db
+.DS_Store
+desktop.ini
+
+# --- VS Code / Theia 本地设置 ---
+.theia/settings.json
+.vscode/settings.json
+.vscode/tasks.json
+.vscode/launch.json
