@@ -4,7 +4,7 @@
 
 SHELL = cmd.exe
 
-CG_TOOL_ROOT := D:/TMX_ENVSET/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS
+CG_TOOL_ROOT := D:/CCS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS
 
 GEN_OPTS__FLAG := @"./device.opt" 
 GEN_CMDS__FLAG := -Wl,-l"./device_linker.cmd" 
@@ -12,10 +12,12 @@ GEN_CMDS__FLAG := -Wl,-l"./device_linker.cmd"
 ORDERED_OBJS += \
 "./control.o" \
 "./debug.o" \
+"./delay.o" \
 "./gpio_toggle_output.o" \
 "./ti_msp_dl_config.o" \
 "./startup_mspm0g350x_ticlang.o" \
 "./motor.o" \
+"./mpu6050.o" \
 "./pid.o" \
 "./sensor.o" \
 $(GEN_CMDS__FLAG) \
@@ -135,15 +137,15 @@ all: $(OBJS) $(GEN_CMDS)
 gpio_toggle_output.out: $(OBJS) $(GEN_CMDS)
 	@echo 'Building target: "$@"'
 	@echo 'Invoking: Arm Linker'
-	"D:/TMX_ENVSET/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/bin/tiarmclang.exe" @"device.opt"  -march=thumbv6m -mcpu=cortex-m0plus -mfloat-abi=soft -mlittle-endian -mthumb -O2 -gdwarf-3 -Wall -Wl,-m"gpio_toggle_output.map" -Wl,-i"C:/TI/mspm0_sdk_2_10_00_04/source" -Wl,-i"C:/Users/l2025/workspace_ccstheia/gpio_toggle_output" -Wl,-i"C:/Users/l2025/workspace_ccstheia/gpio_toggle_output/Debug/syscfg" -Wl,-i"D:/TMX_ENVSET/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/lib" -Wl,--diag_wrap=off -Wl,--display_error_number -Wl,--warn_sections -Wl,--xml_link_info="gpio_toggle_output_linkInfo.xml" -Wl,--rom_model -o "gpio_toggle_output.out" $(ORDERED_OBJS)
+	"D:/CCS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/bin/tiarmclang.exe" @"device.opt"  -march=thumbv6m -mcpu=cortex-m0plus -mfloat-abi=soft -mlittle-endian -mthumb -O2 -gdwarf-3 -Wall -Wl,-m"gpio_toggle_output.map" -Wl,-i"C:/TI/mspm0_sdk_2_10_00_04/source" -Wl,-i"C:/Users/52275/Desktop/TI_2024_H/2024_group_D/2024TI-Group-D/gpio_toggle_output" -Wl,-i"C:/Users/52275/Desktop/TI_2024_H/2024_group_D/2024TI-Group-D/gpio_toggle_output/Debug/syscfg" -Wl,-i"D:/CCS/ccs/tools/compiler/ti-cgt-armllvm_4.0.4.LTS/lib" -Wl,--diag_wrap=off -Wl,--display_error_number -Wl,--warn_sections -Wl,--xml_link_info="gpio_toggle_output_linkInfo.xml" -Wl,--rom_model -o "gpio_toggle_output.out" $(ORDERED_OBJS)
 	@echo 'Finished building target: "$@"'
 	@echo ' '
 
 # Other Targets
 clean:
 	-$(RM) $(GEN_MISC_FILES__QUOTED)$(GEN_FILES__QUOTED)$(EXE_OUTPUTS__QUOTED)
-	-$(RM) "control.o" "debug.o" "gpio_toggle_output.o" "ti_msp_dl_config.o" "startup_mspm0g350x_ticlang.o" "motor.o" "pid.o" "sensor.o" 
-	-$(RM) "control.d" "debug.d" "gpio_toggle_output.d" "ti_msp_dl_config.d" "startup_mspm0g350x_ticlang.d" "motor.d" "pid.d" "sensor.d" 
+	-$(RM) "control.o" "debug.o" "delay.o" "gpio_toggle_output.o" "ti_msp_dl_config.o" "startup_mspm0g350x_ticlang.o" "motor.o" "mpu6050.o" "pid.o" "sensor.o" 
+	-$(RM) "control.d" "debug.d" "delay.d" "gpio_toggle_output.d" "ti_msp_dl_config.d" "startup_mspm0g350x_ticlang.d" "motor.d" "mpu6050.d" "pid.d" "sensor.d" 
 	-@echo 'Finished clean'
 	-@echo ' '
 

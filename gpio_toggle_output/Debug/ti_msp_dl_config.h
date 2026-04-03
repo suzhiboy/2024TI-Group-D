@@ -107,6 +107,21 @@ extern "C" {
 
 
 
+/* Defines for I2C_0 */
+#define I2C_0_INST                                                          I2C1
+#define I2C_0_INST_IRQHandler                                    I2C1_IRQHandler
+#define I2C_0_INST_INT_IRQN                                        I2C1_INT_IRQn
+#define GPIO_I2C_0_SDA_PORT                                                GPIOA
+#define GPIO_I2C_0_SDA_PIN                                        DL_GPIO_PIN_16
+#define GPIO_I2C_0_IOMUX_SDA                                     (IOMUX_PINCM38)
+#define GPIO_I2C_0_IOMUX_SDA_FUNC                      IOMUX_PINCM38_PF_I2C1_SDA
+#define GPIO_I2C_0_SCL_PORT                                                GPIOA
+#define GPIO_I2C_0_SCL_PIN                                        DL_GPIO_PIN_15
+#define GPIO_I2C_0_IOMUX_SCL                                     (IOMUX_PINCM37)
+#define GPIO_I2C_0_IOMUX_SCL_FUNC                      IOMUX_PINCM37_PF_I2C1_SCL
+
+
+
 /* Port definition for Pin Group GPIO_LEDS */
 #define GPIO_LEDS_PORT                                                   (GPIOB)
 
@@ -163,6 +178,7 @@ void SYSCFG_DL_GPIO_init(void);
 void SYSCFG_DL_SYSCTL_init(void);
 void SYSCFG_DL_PWM_MOTOR_init(void);
 void SYSCFG_DL_TIMER_0_init(void);
+void SYSCFG_DL_I2C_0_init(void);
 
 
 bool SYSCFG_DL_saveConfiguration(void);

@@ -11,10 +11,12 @@ SYSCFG_SRCS += \
 C_SRCS += \
 ../control.c \
 ../debug.c \
+../delay.c \
 ../gpio_toggle_output.c \
 ./ti_msp_dl_config.c \
 C:/TI/mspm0_sdk_2_10_00_04/source/ti/devices/msp/m0p/startup_system_files/ticlang/startup_mspm0g350x_ticlang.c \
 ../motor.c \
+../mpu6050.c \
 ../pid.c \
 ../sensor.c 
 
@@ -29,10 +31,12 @@ GEN_FILES += \
 C_DEPS += \
 ./control.d \
 ./debug.d \
+./delay.d \
 ./gpio_toggle_output.d \
 ./ti_msp_dl_config.d \
 ./startup_mspm0g350x_ticlang.d \
 ./motor.d \
+./mpu6050.d \
 ./pid.d \
 ./sensor.d 
 
@@ -42,10 +46,12 @@ GEN_OPTS += \
 OBJS += \
 ./control.o \
 ./debug.o \
+./delay.o \
 ./gpio_toggle_output.o \
 ./ti_msp_dl_config.o \
 ./startup_mspm0g350x_ticlang.o \
 ./motor.o \
+./mpu6050.o \
 ./pid.o \
 ./sensor.o 
 
@@ -57,10 +63,12 @@ GEN_MISC_FILES += \
 OBJS__QUOTED += \
 "control.o" \
 "debug.o" \
+"delay.o" \
 "gpio_toggle_output.o" \
 "ti_msp_dl_config.o" \
 "startup_mspm0g350x_ticlang.o" \
 "motor.o" \
+"mpu6050.o" \
 "pid.o" \
 "sensor.o" 
 
@@ -72,10 +80,12 @@ GEN_MISC_FILES__QUOTED += \
 C_DEPS__QUOTED += \
 "control.d" \
 "debug.d" \
+"delay.d" \
 "gpio_toggle_output.d" \
 "ti_msp_dl_config.d" \
 "startup_mspm0g350x_ticlang.d" \
 "motor.d" \
+"mpu6050.d" \
 "pid.d" \
 "sensor.d" 
 
@@ -87,10 +97,12 @@ GEN_FILES__QUOTED += \
 C_SRCS__QUOTED += \
 "../control.c" \
 "../debug.c" \
+"../delay.c" \
 "../gpio_toggle_output.c" \
 "./ti_msp_dl_config.c" \
 "C:/TI/mspm0_sdk_2_10_00_04/source/ti/devices/msp/m0p/startup_system_files/ticlang/startup_mspm0g350x_ticlang.c" \
 "../motor.c" \
+"../mpu6050.c" \
 "../pid.c" \
 "../sensor.c" 
 
