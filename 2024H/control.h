@@ -3,8 +3,17 @@
 
 #include "ti_msp_dl_config.h"
 
+/* --- 任务模式定义 (全局可见) --- */
+#define TASK_IDLE               0
+#define TASK_1_AB_STRAIGHT      1
+#define TASK_2_ABCD_CIRCLE      2
+#define TASK_3_ACBD_DIAGONAL    3
+#define TASK_4_FOUR_LAPS        4
+#define TASK_FINISHED           100
+
 void Control_Init(void);
 void Control_Loop(void);
 void Control_Reset(void);
+void Reset_Encoder_Distance(void); // 声明重置里程计接口
 
 #endif
