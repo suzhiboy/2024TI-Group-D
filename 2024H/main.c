@@ -4,6 +4,14 @@
 #include "encoder.h"
 #include "delay.h"
 #include "main.h"
+#include "sensor.h"
+#include "oled.h"
+#include <stdio.h>
+
+/* --- 0. 调试开关 --- */
+#define DEBUG_SENSORS_OLED   1   // 设置为 1 开启 OLED 传感器实时调试
+
+void Debug_Sensors_Display(void);
 
 /**
  * @brief 按键扫描逻辑
@@ -88,8 +96,47 @@ int main(void)
     {
         AHRS_Geteuler();
         Key_Scan_Proc();
+
+#if DEBUG_SENSORS_OLED
+        if (Car_Mode == TASK_IDLE) { // 仅在待机模式下刷新调试信息，以免干扰运行时的 OLED 显示
+            Debug_Sensors_Display();
+        }
+#endif
+
         delay_ms(10);
     }
+}
+
+/**
+ * @brief 灰度传感器 8 路调试可视化输出 (OLED 方案)
+ */
+void Debug_Sensors_Display(void)
+{
+    uint8_t sensor_data[8];
+    char disp_buf[16];
+    float current_err = 0;
+
+    // 1. 读取传感器原始数据
+    Sensor_Read_All(sensor_data);
+    // 2. 获取计算出的 PID 误差量
+    current_err = Sensor_Get_Error();
+
+    // 3. 构建 8 路状态字符串 (例如 "11000000")
+    for (int i = 0; i < 8; i++) {
+        disp_buf[i] = (sensor_data[i] == 1) ? '1' : '0';
+    }
+    disp_buf[8] = '\0';
+
+    // 4. OLED 刷新显示
+    OLED_ShowString(0, 0, (uint8_t *)"Sensors:");
+    OLED_ShowString(64, 0, (uint8_t *)disp_buf);  // 第一行右侧显示 0101
+
+    sprintf(disp_buf, "Err: %+.2f  ", current_err);
+    OLED_ShowString(0, 2, (uint8_t *)disp_buf);   // 第二行显示偏差量
+
+    // 可以在第三行增加任务状态辅助监控
+    sprintf(disp_buf, "Dist:%.1f cm  ", g_Encoder.distance_cm);
+    OLED_ShowString(0, 4, (uint8_t *)disp_buf);   // 第三行显示当前里程
 }
 
 void TIMER_0_INST_IRQHandler(void)
