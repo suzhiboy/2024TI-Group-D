@@ -8,7 +8,7 @@
 PID_TypeDef pid_line_track;
 
 /* --- 2. 控制参数配置 --- */
-#define BASE_SPEED      150     // 基础直线行驶速度 (PWM)
+#define BASE_SPEED      1600     // 基础直线行驶速度 (PWM)
 #define TRACK_TARGET    0.0f    // 理想巡线目标值 (正中心偏差为 0)
 
 /**
