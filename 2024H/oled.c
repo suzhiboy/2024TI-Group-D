@@ -3,26 +3,30 @@
 
 // --- 模拟 IIC 底层函数 ---
 void IIC_Start(void) {
-    OLED_SDA_HIGH(); OLED_SCL_HIGH();
-    OLED_SDA_LOW();  OLED_SCL_LOW();
+    OLED_SDA_HIGH(); OLED_SCL_HIGH(); delay_cycles(200);
+    OLED_SDA_LOW();  delay_cycles(200);
+    OLED_SCL_LOW();  delay_cycles(200);
 }
 
 void IIC_Stop(void) {
-    OLED_SCL_LOW();  OLED_SDA_LOW();
-    OLED_SCL_HIGH(); OLED_SDA_HIGH();
+    OLED_SCL_LOW();  delay_cycles(200);
+    OLED_SDA_LOW();  delay_cycles(200);
+    OLED_SCL_HIGH(); delay_cycles(200);
+    OLED_SDA_HIGH(); delay_cycles(200);
 }
 
 void Write_IIC_Byte(unsigned char IIC_Byte) {
     unsigned char i, m, temp;
     temp = IIC_Byte;
-    OLED_SCL_LOW();
+    OLED_SCL_LOW(); delay_cycles(200);
     for (i = 0; i < 8; i++) {
         m = temp;
         if (m & 0x80) OLED_SDA_HIGH();
         else OLED_SDA_LOW();
+        delay_cycles(200);
+        OLED_SCL_HIGH(); delay_cycles(200);
+        OLED_SCL_LOW();  delay_cycles(200);
         temp = temp << 1;
-        OLED_SCL_HIGH(); 
-        OLED_SCL_LOW();
     }
 }
 

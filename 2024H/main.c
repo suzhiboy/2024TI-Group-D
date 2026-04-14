@@ -86,6 +86,11 @@ void Key_Scan_Proc(void)
 int main(void)
 {
     SYSCFG_DL_init();
+    
+    // 硬件基础初始化
+    OLED_Init();
+    OLED_Clear();
+    
     Control_Init();
     mpu6050_init();
 
