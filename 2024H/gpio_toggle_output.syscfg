@@ -67,8 +67,10 @@ GPIO4.associatedPins[1].$name       = "QEI_RIGHT_A";
 GPIO4.associatedPins[1].direction   = "INPUT";
 GPIO4.associatedPins[1].pin.$assign = "PB6";
 GPIO4.associatedPins[2].$name       = "QEI_LEFT_B";
+GPIO4.associatedPins[2].direction   = "INPUT";
 GPIO4.associatedPins[2].pin.$assign = "PB9";
 GPIO4.associatedPins[3].$name       = "QEI_RIGHT_B";
+GPIO4.associatedPins[3].direction   = "INPUT";
 GPIO4.associatedPins[3].pin.$assign = "PB8";
 
 GPIO5.$name                              = "GPIO_KEYS";
