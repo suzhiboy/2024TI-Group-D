@@ -12,6 +12,16 @@
 #define DEBUG_SENSORS_OLED   1   // 设置为 1 开启 OLED 传感器实时调试
 
 void Debug_Sensors_Display(void);
+extern float pitch2, roll2, Yaw;
+static volatile uint8_t g_ahrs_update_flag = 0;
+
+void Yaw_Reset(void)
+{
+    Yaw = 0.0f;
+    pitch2 = 0.0f;
+    roll2 = 0.0f;
+    mpu6050.Yaw = 0.0f;
+}
 
 /**
  * @brief 按键扫描逻辑
@@ -48,7 +58,7 @@ void Key_Scan_Proc(void)
         if (!(gpiob_state & DL_GPIO_PIN_3)) {
             delay_ms(20);
             if (!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_3))) {
-                Control_Reset(); mpu6050.Yaw = 0; Reset_Encoder_Distance();
+                Control_Reset(); Yaw_Reset(); Reset_Encoder_Distance();
                 Car_Mode = TASK_1_AB_STRAIGHT;
                 while(!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_3))); 
             }
@@ -57,7 +67,7 @@ void Key_Scan_Proc(void)
         else if (!(gpiob_state & DL_GPIO_PIN_13)) {
             delay_ms(20);
             if (!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_13))) {
-                Control_Reset(); mpu6050.Yaw = 0; Reset_Encoder_Distance();
+                Control_Reset(); Yaw_Reset(); Reset_Encoder_Distance();
                 Car_Mode = TASK_2_ABCD_CIRCLE;
                 while(!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_13)));
             }
@@ -66,7 +76,7 @@ void Key_Scan_Proc(void)
         else if (!(gpiob_state & DL_GPIO_PIN_12)) {
             delay_ms(20);
             if (!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_12))) {
-                Control_Reset(); mpu6050.Yaw = 0; Reset_Encoder_Distance();
+                Control_Reset(); Yaw_Reset(); Reset_Encoder_Distance();
                 Car_Mode = TASK_3_ACBD_DIAGONAL;
                 while(!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_12)));
             }
@@ -75,7 +85,7 @@ void Key_Scan_Proc(void)
         else if (!(gpiob_state & DL_GPIO_PIN_2)) {
             delay_ms(20);
             if (!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_2))) {
-                Control_Reset(); mpu6050.Yaw = 0; Reset_Encoder_Distance();
+                Control_Reset(); Yaw_Reset(); Reset_Encoder_Distance();
                 Car_Mode = TASK_4_FOUR_LAPS;
                 while(!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_2)));
             }
@@ -99,7 +109,10 @@ int main(void)
 
     while (1) 
     {
-        AHRS_Geteuler();
+        if (g_ahrs_update_flag) {
+            g_ahrs_update_flag = 0;
+            AHRS_Geteuler();
+        }
         Key_Scan_Proc();
 
 #if DEBUG_SENSORS_OLED
@@ -148,6 +161,7 @@ void TIMER_0_INST_IRQHandler(void)
 {
     switch (DL_Timer_getPendingInterrupt(TIMER_0_INST)) {
         case DL_TIMER_IIDX_ZERO:
+            g_ahrs_update_flag = 1;
             Control_Loop(); 
             break;
         default:
