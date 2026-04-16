@@ -3,11 +3,11 @@
 
 #include "ti_msp_dl_config.h"
 
-// 严格匹配 ti_msp_dl_config.h 中的宏定义
-#define OLED_SCL_HIGH()  DL_GPIO_setPins(GPIO_OLED_PORT, GPIO_OLED_OLED_SCL_PIN)
-#define OLED_SCL_LOW()   DL_GPIO_clearPins(GPIO_OLED_PORT, GPIO_OLED_OLED_SCL_PIN)
-#define OLED_SDA_HIGH()  DL_GPIO_setPins(GPIO_OLED_PORT, GPIO_OLED_OLED_SDA_PIN)
-#define OLED_SDA_LOW()   DL_GPIO_clearPins(GPIO_OLED_PORT, GPIO_OLED_OLED_SDA_PIN)
+// OLED 的 7 位 I2C 地址
+#define OLED_ADDR           0x3C
+
+// 【关键修改点】：PA0/PA1 对应的是 I2C_1_INST (即硬件 I2C0)
+#define OLED_I2C_INSTANCE   I2C_1_INST 
 
 void OLED_Init(void);
 void OLED_Clear(void);
