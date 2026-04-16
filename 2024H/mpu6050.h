@@ -32,6 +32,7 @@ extern float Gyro_Z_Measeure;
 void MPU6050_ReadDatas_Proc(void);
 //获取欧拉角
 void AHRS_Geteuler(void);
+void Yaw_Reset(void);
 
 //卡尔曼滤波参数结构体
 struct KalmanFilter{
