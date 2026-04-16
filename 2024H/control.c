@@ -98,8 +98,8 @@ void Control_Loop(void)
             }
             
             turn_out = PID_Calc_Positional(&pid_yaw, mpu6050.Yaw);
-            L_speed = 450 - (int16_t)turn_out; 
-            R_speed = 450 + (int16_t)turn_out;
+            L_speed = 800 - (int16_t)turn_out; 
+            R_speed = 800 + (int16_t)turn_out;
             
             // 判定 B 点：距离达到 100cm 或 抓到横线
             if (g_Encoder.distance_cm >= 100.0f || Is_On_CrossLine()) {
@@ -119,14 +119,14 @@ void Control_Loop(void)
                 pid_yaw.target = mpu6050.Yaw + error_yaw;
 
                 turn_out = PID_Calc_Positional(&pid_yaw, mpu6050.Yaw);
-                L_speed = 500 - turn_out; R_speed = 500 + turn_out;
+                L_speed = 800 - turn_out; R_speed = 800 + turn_out;
                 if (g_Encoder.distance_cm >= 100.0f || Is_On_CrossLine()) {
                     Current_Step = 1; Reset_Encoder_Distance(); Trigger_Feedback();
                 }
             } 
             else if (Current_Step == 1) { // B -> C (弧线循迹)
                 turn_out = PID_Calc_Positional(&pid_line, Sensor_Get_Error());
-                L_speed = 400 + turn_out; R_speed = 400 - turn_out;
+                L_speed = 600 + turn_out; R_speed = 600 - turn_out;
                 if (absFloat(mpu6050.Yaw) >= 170.0f) { 
                     Current_Step = 2; Reset_Encoder_Distance(); Trigger_Feedback();
                 }
@@ -139,7 +139,7 @@ void Control_Loop(void)
                 pid_yaw.target = mpu6050.Yaw + error_yaw;
 
                 turn_out = PID_Calc_Positional(&pid_yaw, mpu6050.Yaw);
-                L_speed = 500 - turn_out; R_speed = 500 + turn_out;
+                L_speed = 600 - turn_out; R_speed = 600 + turn_out;
                 if (g_Encoder.distance_cm >= 100.0f || Is_On_CrossLine()) {
                     Current_Step = 3; Reset_Encoder_Distance(); Trigger_Feedback();
                 }

@@ -14,15 +14,15 @@
 void Sensor_Read_All(uint8_t results[8])
 {
     for (int i = 0; i < 8; i++) {
-        // 设置通道选择引脚 S0, S1, S2
-        if (i & 0x01) DL_GPIO_setPins(GPIO_SENSOR_S0_PORT, GPIO_SENSOR_S0_PIN);
-        else DL_GPIO_clearPins(GPIO_SENSOR_S0_PORT, GPIO_SENSOR_S0_PIN);
+        // 设置通道选择引脚 AD0, AD1, AD2
+        if (i & 0x01) DL_GPIO_setPins(GPIO_SENSOR_AD0_PORT, GPIO_SENSOR_AD0_PIN);
+        else DL_GPIO_clearPins(GPIO_SENSOR_AD0_PORT, GPIO_SENSOR_AD0_PIN);
         
-        if (i & 0x02) DL_GPIO_setPins(GPIO_SENSOR_S1_PORT, GPIO_SENSOR_S1_PIN);
-        else DL_GPIO_clearPins(GPIO_SENSOR_S1_PORT, GPIO_SENSOR_S1_PIN);
+        if (i & 0x02) DL_GPIO_setPins(GPIO_SENSOR_AD1_PORT, GPIO_SENSOR_AD1_PIN);
+        else DL_GPIO_clearPins(GPIO_SENSOR_AD1_PORT, GPIO_SENSOR_AD1_PIN);
         
-        if (i & 0x04) DL_GPIO_setPins(GPIO_SENSOR_S2_PORT, GPIO_SENSOR_S2_PIN);
-        else DL_GPIO_clearPins(GPIO_SENSOR_S2_PORT, GPIO_SENSOR_S2_PIN);
+        if (i & 0x04) DL_GPIO_setPins(GPIO_SENSOR_AD2_PORT, GPIO_SENSOR_AD2_PIN);
+        else DL_GPIO_clearPins(GPIO_SENSOR_AD2_PORT, GPIO_SENSOR_AD2_PIN);
         
         // 等待选择器切换稳定
         delay_cycles(DELAY_50US);
