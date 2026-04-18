@@ -146,15 +146,17 @@ void Debug_Sensors_Display(void)
     disp_buf[8] = '\0';
 
     // 4. OLED 刷新显示
-    OLED_ShowString(0, 0, (uint8_t *)"Sensors:");
-    OLED_ShowString(64, 0, (uint8_t *)disp_buf);  // 第一行右侧显示 0101
+    OLED_ShowString(0, 0, (uint8_t *)"Sensors:", 16, 1);
+    OLED_ShowString(64, 0, (uint8_t *)disp_buf, 16, 1);  // 第一行右侧显示 0101
 
     sprintf(disp_buf, "Err: %+.2f  ", current_err);
-    OLED_ShowString(0, 2, (uint8_t *)disp_buf);   // 第二行显示偏差量
+    OLED_ShowString(0, 16, (uint8_t *)disp_buf, 16, 1);   // 第二行显示偏差量
 
     // 可以在第三行增加任务状态辅助监控
     sprintf(disp_buf, "Dist:%.1f cm  ", g_Encoder.distance_cm);
-    OLED_ShowString(0, 4, (uint8_t *)disp_buf);   // 第三行显示当前里程
+    OLED_ShowString(0, 32, (uint8_t *)disp_buf, 16, 1);   // 第三行显示当前里程
+
+    OLED_Update(); // 必须调用更新函数，数据才会刷到屏幕上
 }
 
 void TIMER_0_INST_IRQHandler(void)
