@@ -2,6 +2,7 @@
 #define __CONTROL_H_
 
 #include "ti_msp_dl_config.h"
+#include "pid.h"
 
 /* --- 任务模式定义 (全局可见) --- */
 #define TASK_IDLE               0
@@ -11,9 +12,16 @@
 #define TASK_4_FOUR_LAPS        4
 #define TASK_FINISHED           100
 
+/* --- 控制器外部声明 --- */
+extern PID_TypeDef pid_line;  
+extern PID_TypeDef pid_yaw;   
+extern PID_TypeDef pid_speed_L;
+extern PID_TypeDef pid_speed_R;
+extern uint8_t Car_Mode;
+
 void Control_Init(void);
 void Control_Loop(void);
 void Control_Reset(void);
 void Reset_Encoder_Distance(void); // 声明重置里程计接口
-
+void Vofa_Send_Debug(void);
 #endif

@@ -1,4 +1,5 @@
 #include "encoder.h"
+#include <ti/devices/msp/msp.h>
 
 // 实例化全局数据中心变量
 Encoder_Data_t g_Encoder = {0};
@@ -11,7 +12,7 @@ static volatile int32_t right_pulse_count = 0;
  * @brief 编码器底层初始化
  */
 void Encoder_Init(void) {
-    // 开启 GPIOB 的中断（针对 PB6, PB7）
+    // 使用 MSPM0 标准的 GPIOB 中断宏
     NVIC_EnableIRQ(GPIOB_INT_IRQn);
 }
 
@@ -20,29 +21,28 @@ void Encoder_Init(void) {
  * @note  处理 PB7(左轮A) 和 PB6(右轮A) 的双边沿中断
  */
 void GROUP1_IRQHandler(void) {
-    // 获取中断状态寄存器
-    uint32_t status = DL_GPIO_getEnabledInterruptStatus(GPIOA, 0xFFFFFFFF) | 
-                      DL_GPIO_getEnabledInterruptStatus(GPIOB, 0xFFFFFFFF);
+    // 获取中断状态寄存器 (同时检查 GPIOB)
+    uint32_t status = DL_GPIO_getEnabledInterruptStatus(GPIOB, DL_GPIO_PIN_6 | DL_GPIO_PIN_7);
 
     // --- 左轮正交解码 (PB7 作为 A 相中断源) ---
     if (status & DL_GPIO_PIN_7) {
-        bool phase_a = DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_7);
-        bool phase_b = DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_9);
+        // 使用 !! 确保将位掩码转换为逻辑 0 或 1，防止位位置不同导致的比较错误
+        bool phase_a = !!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_7));
+        bool phase_b = !!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_9));
         
-        // 正交解码算法：A相发生跳变时，若 A != B 则为正转，反之为反转
-        if (phase_a != phase_b) left_pulse_count++;
-        else left_pulse_count--;
+        // 修正：对调 ++ 和 -- 以修正极性
+        if (phase_a != phase_b) left_pulse_count--;
+        else left_pulse_count++;
         
         DL_GPIO_clearInterruptStatus(GPIOB, DL_GPIO_PIN_7);
     }
 
     // --- 右轮正交解码 (PB6 作为 A 相中断源) ---
     if (status & DL_GPIO_PIN_6) {
-        bool phase_a = DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_6);
-        bool phase_b = DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_8);
+        bool phase_a = !!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_6));
+        bool phase_b = !!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_8));
         
-        // 注意：由于左右电机镜像对称安装，通常有一边需要反向计数
-        // 这里假设右轮逻辑与左轮相同，调试时若发现推车距离减小，请将下方的 ++/-- 互换
+        // 修正：对调 ++ 和 -- 以修正极性
         if (phase_a != phase_b) right_pulse_count++;
         else right_pulse_count--;
         
@@ -55,19 +55,21 @@ void GROUP1_IRQHandler(void) {
  * @note  必须在 10ms 定时器中断中调用
  */
 void Encoder_UpdateData_10ms(void) {
-    // 1. 提取当前速度增量并清零计数器 (原子操作模拟)
+    // 1. 提取当前速度增量
     g_Encoder.speed_left = left_pulse_count;
     g_Encoder.speed_right = right_pulse_count;
     
-    left_pulse_count = 0;
-    right_pulse_count = 0;
-
-    // 2. 累加总脉冲数
+    // 2. 累加总脉冲数 (在清零前累加)
     g_Encoder.pulses_left += g_Encoder.speed_left;
     g_Encoder.pulses_right += g_Encoder.speed_right;
 
-    // 3. 物理量换算 (厘米解算)
-    // 距离 = 左右平均脉冲数 * 转换系数
+    // 3. 清零计数器
+    left_pulse_count = 0;
+    right_pulse_count = 0;
+
+    // 4. 物理量换算 (厘米解算)
+    // 距离计算公式：(左脉冲 + 右脉冲) / 2.0 * 系数
+    // 注意：右轮已经取反，所以这里用加法
     float avg_pulses = (float)(g_Encoder.pulses_left + g_Encoder.pulses_right) / 2.0f;
     g_Encoder.distance_cm = avg_pulses * PULSE_TO_CM;
 }

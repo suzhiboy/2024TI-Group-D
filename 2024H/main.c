@@ -8,6 +8,9 @@
 #include "oled.h"
 #include <stdio.h>
 
+// 1. 定义一个全局标志位 (在头部)
+volatile uint8_t g_vofa_send_flag = 0;
+
 /* --- 0. 调试开关 --- */
 #define DEBUG_SENSORS_OLED   1   // 设置为 1 开启 OLED 传感器实时调试
 
@@ -102,7 +105,13 @@ int main(void)
     OLED_Clear();
     
     Control_Init();
+    
+    // 显式使能 I2C 控制器，否则 MPU6050 无法通信
+    DL_I2C_enableController(I2C_0_INST);
     mpu6050_init();
+
+    // 显式开启串口发送功能，确保 VOFA+ 能收到数据
+    DL_UART_Main_enable(UART_BLUETOOTH_INST);
 
     DL_Timer_startCounter(TIMER_0_INST);
     NVIC_EnableIRQ(TIMER_0_INST_INT_IRQN);
@@ -115,6 +124,13 @@ int main(void)
         }
         Key_Scan_Proc();
 
+        // 【新增】：在主循环中发送串口数据，随时可以被编码器中断打断，不漏脉冲！
+        if (g_vofa_send_flag) {
+            g_vofa_send_flag = 0;
+            Vofa_Send_Debug(); 
+        }
+
+        
 #if DEBUG_SENSORS_OLED
         if (Car_Mode == TASK_IDLE) { // 仅在待机模式下刷新调试信息，以免干扰运行时的 OLED 显示
             Debug_Sensors_Display();
@@ -165,6 +181,7 @@ void TIMER_0_INST_IRQHandler(void)
         case DL_TIMER_IIDX_ZERO:
             g_ahrs_update_flag = 1;
             Control_Loop(); 
+            g_vofa_send_flag = 1; // 触发串口发送标志
             break;
         default:
             break;
