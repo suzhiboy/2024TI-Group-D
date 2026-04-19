@@ -176,16 +176,22 @@ unsigned char Single_ReadI2C(unsigned char SlaveAddress,unsigned char REG_Addres
 uint8_t g_imu_addr = 0x68;
 
 void mpu6050_init(void){
+    // 强制复位硬件 I2C 模块防止挂死
+    DL_I2C_reset(MPU6050_I2C_INST);
+    DL_I2C_enable(MPU6050_I2C_INST);
+    delay_ms(50);
+
     // 自动探测地址
     uint8_t who_am_i = 0;
     I2C_ReadReg(0x68, WHO_AM_I, &who_am_i, 1);
     if (who_am_i != 0x68) {
+        delay_ms(10);
         I2C_ReadReg(0x69, WHO_AM_I, &who_am_i, 1);
         if (who_am_i == 0x68) g_imu_addr = 0x69;
     }
 
     Single_WriteI2C(g_imu_addr, PWR_MGMT_1, 0x00); // 唤醒 MPU6050
-    delay_ms(10);
+    delay_ms(50); // 增加唤醒等待时间
     Single_WriteI2C(g_imu_addr, SMPLRT_DIV, 0x09);
     Single_WriteI2C(g_imu_addr, MPU_CONFIG, 0x06);
     Single_WriteI2C(g_imu_addr, GYRO_CONFIG, 0x18);
