@@ -58,7 +58,7 @@ void Control_Init(void)
     
     // 初始化 PID
     PID_Init(&pid_line, 4.8f, 0.01f, 1.2f, 400.0f, -400.0f, 20.0f);
-    PID_Init(&pid_yaw, 25.0f, 0.0f, 5.0f, 350.0f, -350.0f, 0.0f);
+    PID_Init(&pid_yaw, 30.0f, 0.0f, 5.0f, 350.0f, -350.0f, 0.0f);
     
     Control_Reset();
 }

@@ -247,7 +247,7 @@ void mpu6050_read(int16_t *gyro,int16_t *accel,float *temperature){
 #define Gyro_G 			0.03051756f				
 #define Gyro_Gr			0.0005426f
 
-#define Offset_Times 	200.0		//ϵУ׼
+#define Offset_Times 	500.0		//校准次数延长至 500 次 (5s)
 #define Sampling_Time	0.01		//ȡʱ10ms
 
 #define IIR_ORDER     4      //ʹIIR˲Ľ
