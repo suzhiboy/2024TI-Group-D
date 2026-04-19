@@ -14,7 +14,10 @@ void Encoder_Init(void) {
     // 1. 显式清除 GPIOB 可能存在的残留中断标志
     DL_GPIO_clearInterruptStatus(GPIOB, DL_GPIO_PIN_6 | DL_GPIO_PIN_7 | DL_GPIO_PIN_8 | DL_GPIO_PIN_9);
     
-    // 2. 开启 GPIOB 的 NVIC 中断
+    // 2. 强制开启引脚的中断使能 (防止 SysConfig 没勾选使能)
+    DL_GPIO_enableInterrupt(GPIOB, DL_GPIO_PIN_6 | DL_GPIO_PIN_7);
+    
+    // 3. 开启 GPIOB 的 NVIC 中断
     NVIC_EnableIRQ(GPIOB_INT_IRQn);
 }
 
@@ -33,10 +36,10 @@ void GROUP1_IRQHandler(void) {
 
         // --- 左轮正交解码 (PB7 作为 A 相中断源) ---
         if (gpio_status & DL_GPIO_PIN_7) {
-            bool phase_a = DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_7);
-            bool phase_b = DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_9);
+            // 修正：确保读取结果转换为标准的 0 或 1
+            uint8_t phase_a = DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_7) ? 1 : 0;
+            uint8_t phase_b = DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_9) ? 1 : 0;
             
-            // 正交解码：A相跳变时，A != B 为正向
             if (phase_a != phase_b) left_pulse_count++;
             else left_pulse_count--;
             
@@ -45,10 +48,10 @@ void GROUP1_IRQHandler(void) {
 
         // --- 右轮正交解码 (PB6 作为 A 相中断源) ---
         if (gpio_status & DL_GPIO_PIN_6) {
-            bool phase_a = DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_6);
-            bool phase_b = DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_8);
+            uint8_t phase_a = DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_6) ? 1 : 0;
+            uint8_t phase_b = DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_8) ? 1 : 0;
             
-            // 右轮镜像安装，若前进时脉冲减小，请将下方的 ++/-- 互换
+            // 修正：如果你的小车前进时里程不增反减，请将这里的 ++ 和 -- 对换
             if (phase_a != phase_b) right_pulse_count++;
             else right_pulse_count--;
             
@@ -70,8 +73,14 @@ void Encoder_UpdateData_10ms(void) {
     g_Encoder.pulses_left += g_Encoder.speed_left;
     g_Encoder.pulses_right += g_Encoder.speed_right;
 
-    float avg_pulses = (float)(g_Encoder.pulses_left + g_Encoder.pulses_right) / 2.0f;
-    g_Encoder.distance_cm = avg_pulses * PULSE_TO_CM;
+    // 改进：取绝对值的平均值计算行驶路程，防止正负抵消导致里程为0
+    // 注意：如果是为了做位移计算（倒车减里程），则去掉 fabsf
+    float dist_l = (float)g_Encoder.pulses_left;
+    float dist_r = (float)g_Encoder.pulses_right;
+    
+    // 如果左右轮安装方向相反，前进时一正一负，这里取绝对值累加
+    float total_pulses = (float)(abs(g_Encoder.pulses_left) + abs(g_Encoder.pulses_right)) / 2.0f;
+    g_Encoder.distance_cm = total_pulses * PULSE_TO_CM;
 }
 
 void Encoder_Clear(void) {

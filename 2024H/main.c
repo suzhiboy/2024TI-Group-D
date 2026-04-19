@@ -164,6 +164,10 @@ void Debug_Sensors_Display(void)
     sprintf(disp_buf, "Dist:%.1f cm  ", g_Encoder.distance_cm);
     OLED_ShowString(0, 32, (uint8_t *)disp_buf, 16, 1);   // 第三行显示当前里程
 
+    // 增加：第四行显示原始脉冲，判断硬件信号
+    sprintf(disp_buf, "L:%ld R:%ld    ", g_Encoder.pulses_left, g_Encoder.pulses_right);
+    OLED_ShowString(0, 48, (uint8_t *)disp_buf, 16, 1); 
+
     OLED_Update(); // 必须调用更新函数，数据才会刷到屏幕上
 }
 
