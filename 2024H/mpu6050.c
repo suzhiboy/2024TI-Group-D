@@ -14,7 +14,7 @@
 /*-------------------------------------------------------------------------------------------*/
 /*----------------------------------------使用-----------------------------------------------*/
 /*-------------------------------------------------------------------------------------------*/
-#define    MPU6050_I2C_INST		I2C_0_INST		//硬件IIC的宏定义去ti_msp_dl_config.h去看
+#define    MPU6050_I2C_INST		I2C1		
 //在主函数初始化的地方--调用		mpu6050_init()
 //在定时器10ms中断中----调用		AHRS_Geteuler()
 //读取	mpu6050.Pitch	mpu6050.Roll	mpu6050.Yaw
@@ -102,74 +102,41 @@ void  i2c0_read_n_byte(uint8_t DevAddr, uint8_t RegAddr, uint8_t *buf, uint8_t n
     }
 }
 //************I2C write register **********************
-void I2C_WriteReg(uint8_t DevAddr,uint8_t reg_addr, uint8_t *reg_data, uint8_t count){
-    unsigned char I2Ctxbuff[8] = {0x00};
-
+void I2C_WriteReg(uint8_t DevAddr, uint8_t reg_addr, uint8_t *reg_data, uint8_t count) {
+    uint8_t I2Ctxbuff[16]; // 增大缓冲区
+    if (count > 15) count = 15;
+    
     I2Ctxbuff[0] = reg_addr;
-    unsigned char i, j = 1;
-
-    for (i = 0; i < count; i++) {
-        I2Ctxbuff[j] = reg_data[i];
-        j++;
+    for (uint8_t i = 0; i < count; i++) {
+        I2Ctxbuff[i + 1] = reg_data[i];
     }
 
-    //    DL_I2C_flushControllerTXFIFO(MPU6050_I2C_INST);
+    // 等待空闲
+    while (!(DL_I2C_getControllerStatus(MPU6050_I2C_INST) & DL_I2C_CONTROLLER_STATUS_IDLE));
+
+    // 发送地址 + 数据
     DL_I2C_fillControllerTXFIFO(MPU6050_I2C_INST, &I2Ctxbuff[0], count + 1);
+    DL_I2C_startControllerTransfer(MPU6050_I2C_INST, DevAddr, DL_I2C_CONTROLLER_DIRECTION_TX, count + 1);
 
-    /* Wait for I2C to be Idle */
-    while (!(DL_I2C_getControllerStatus(MPU6050_I2C_INST) &
-             DL_I2C_CONTROLLER_STATUS_IDLE))
-        ;
-
-    DL_I2C_startControllerTransfer(MPU6050_I2C_INST, DevAddr,
-        DL_I2C_CONTROLLER_DIRECTION_TX, count + 1);
-
-    while (DL_I2C_getControllerStatus(MPU6050_I2C_INST) &
-           DL_I2C_CONTROLLER_STATUS_BUSY_BUS)
-        ;
-    /* Wait for I2C to be Idle */
-    while (!(DL_I2C_getControllerStatus(MPU6050_I2C_INST) &
-             DL_I2C_CONTROLLER_STATUS_IDLE))
-        ;
-    //Avoid BQ769x2 to stretch the SCLK too long and generate a timeout interrupt at 400kHz because of low power mode
-    // if(DL_I2C_getRawInterruptStatus(MPU6050_I2C_INST,DL_I2C_INTERRUPT_CONTROLLER_CLOCK_TIMEOUT))
-    // {
-    //     DL_I2C_flushControllerTXFIFO(MPU6050_I2C_INST);
-    //     DL_I2C_clearInterruptStatus(MPU6050_I2C_INST,DL_I2C_INTERRUPT_CONTROLLER_CLOCK_TIMEOUT);
-    //     I2C_WriteReg(reg_addr, reg_data, count);
-    // }
-    DL_I2C_flushControllerTXFIFO(MPU6050_I2C_INST);
+    while (DL_I2C_getControllerStatus(MPU6050_I2C_INST) & DL_I2C_CONTROLLER_STATUS_BUSY_BUS);
 }
+
 //************I2C read register **********************
-void I2C_ReadReg(uint8_t DevAddr,uint8_t reg_addr, uint8_t *reg_data, uint8_t count){
-    DL_I2C_fillControllerTXFIFO(MPU6050_I2C_INST, &reg_addr, count);
+void I2C_ReadReg(uint8_t DevAddr, uint8_t reg_addr, uint8_t *reg_data, uint8_t count) {
+    // 1. 发送寄存器地址 (仅 1 个字节)
+    while (!(DL_I2C_getControllerStatus(MPU6050_I2C_INST) & DL_I2C_CONTROLLER_STATUS_IDLE));
+    
+    DL_I2C_fillControllerTXFIFO(MPU6050_I2C_INST, &reg_addr, 1);
+    DL_I2C_startControllerTransfer(MPU6050_I2C_INST, DevAddr, DL_I2C_CONTROLLER_DIRECTION_TX, 1);
+    
+    while (DL_I2C_getControllerStatus(MPU6050_I2C_INST) & DL_I2C_CONTROLLER_STATUS_BUSY_BUS);
 
-    /* Wait for I2C to be Idle */
-    while (!(DL_I2C_getControllerStatus(MPU6050_I2C_INST) &
-             DL_I2C_CONTROLLER_STATUS_IDLE))
-        ;
-
-    DL_I2C_startControllerTransfer(
-        MPU6050_I2C_INST, DevAddr, DL_I2C_CONTROLLER_DIRECTION_TX, 1);
-
-    while (DL_I2C_getControllerStatus(MPU6050_I2C_INST) &
-           DL_I2C_CONTROLLER_STATUS_BUSY_BUS)
-        ;
-    /* Wait for I2C to be Idle */
-    while (!(DL_I2C_getControllerStatus(MPU6050_I2C_INST) &
-             DL_I2C_CONTROLLER_STATUS_IDLE))
-        ;
-
-    DL_I2C_flushControllerTXFIFO(MPU6050_I2C_INST);
-
-    /* Send a read request to Target */
-    DL_I2C_startControllerTransfer(
-        MPU6050_I2C_INST, DevAddr, DL_I2C_CONTROLLER_DIRECTION_RX, count);
+    // 2. 读取返回的数据
+    DL_I2C_startControllerTransfer(MPU6050_I2C_INST, DevAddr, DL_I2C_CONTROLLER_DIRECTION_RX, count);
 
     for (uint8_t i = 0; i < count; i++) {
-        for (uint16_t timeout = 0; DL_I2C_isControllerRXFIFOEmpty(MPU6050_I2C_INST); timeout++) {
-            if (timeout > 10000) break; // 防止死循环
-        }
+        uint32_t timeout = 10000;
+        while (DL_I2C_isControllerRXFIFOEmpty(MPU6050_I2C_INST) && timeout--);
         reg_data[i] = DL_I2C_receiveControllerData(MPU6050_I2C_INST);
     }
 }
@@ -206,34 +173,38 @@ unsigned char Single_ReadI2C(unsigned char SlaveAddress,unsigned char REG_Addres
 	I2C_ReadReg(SlaveAddress,REG_Address,&data,1);
 	return data;
 }
-#define imu_adress 0x68
+uint8_t g_imu_addr = 0x68;
 
-uint8_t read_imu[5];
 void mpu6050_init(void){
-  Single_WriteI2C(imu_adress,PWR_MGMT_1  , 0x00);//رж,
-  Single_WriteI2C(imu_adress,SMPLRT_DIV  , 0x09);// sample rate.  Fsample= 1Khz/(<this value>+1) = 1000Hz
-  Single_WriteI2C(imu_adress,MPU_CONFIG  , 0x06);//
-  Single_WriteI2C(imu_adress,GYRO_CONFIG , 0x18);//
-  Single_WriteI2C(imu_adress,ACCEL_CONFIG, 0x18);// 
-	
-	read_imu[0]=Single_ReadI2C(imu_adress,PWR_MGMT_1);
-	read_imu[1]=Single_ReadI2C(imu_adress,SMPLRT_DIV);
-	read_imu[2]=Single_ReadI2C(imu_adress,MPU_CONFIG);
-	read_imu[3]=Single_ReadI2C(imu_adress,GYRO_CONFIG);
-	read_imu[4]=Single_ReadI2C(imu_adress,ACCEL_CONFIG);
+    // 自动探测地址
+    uint8_t who_am_i = 0;
+    I2C_ReadReg(0x68, WHO_AM_I, &who_am_i, 1);
+    if (who_am_i != 0x68) {
+        I2C_ReadReg(0x69, WHO_AM_I, &who_am_i, 1);
+        if (who_am_i == 0x68) g_imu_addr = 0x69;
+    }
+
+    Single_WriteI2C(g_imu_addr, PWR_MGMT_1, 0x00); // 唤醒 MPU6050
+    delay_ms(10);
+    Single_WriteI2C(g_imu_addr, SMPLRT_DIV, 0x09);
+    Single_WriteI2C(g_imu_addr, MPU_CONFIG, 0x06);
+    Single_WriteI2C(g_imu_addr, GYRO_CONFIG, 0x18);
+    Single_WriteI2C(g_imu_addr, ACCEL_CONFIG, 0x18); 
 }
-void mpu6050_read(int16_t *gyro,int16_t *accel,float *temperature){
-	uint8_t buf[14];
-	int16_t temp;
-	I2C_ReadReg(imu_adress,ACCEL_XOUT_H,buf,14);
-	accel[0]=(int16_t)((buf[0]<<8)|buf[1]);
-	accel[1]=(int16_t)((buf[2]<<8)|buf[3]);
-	accel[2]=(int16_t)((buf[4]<<8)|buf[5]);	
-	temp		=(int16_t)((buf[6]<<8)|buf[7]);
-	gyro[0]	=(int16_t)((buf[8]<<8)|buf[9]);
-	gyro[1]	=(int16_t)((buf[10]<<8)|buf[11]);
-	gyro[2]	=(int16_t)((buf[12]<<8)|buf[13]);	
-	*temperature=36.53f+(float)(temp/340.0f);	
+
+void mpu6050_read(int16_t *gyro, int16_t *accel, float *temperature){
+    uint8_t buf[14];
+    int16_t temp_raw;
+    I2C_ReadReg(g_imu_addr, ACCEL_XOUT_H, buf, 14);
+    
+    accel[0] = (int16_t)((buf[0] << 8) | buf[1]);
+    accel[1] = (int16_t)((buf[2] << 8) | buf[3]);
+    accel[2] = (int16_t)((buf[4] << 8) | buf[5]);	
+    temp_raw = (int16_t)((buf[6] << 8) | buf[7]);
+    gyro[0]  = (int16_t)((buf[8] << 8) | buf[9]);
+    gyro[1]  = (int16_t)((buf[10] << 8) | buf[11]);
+    gyro[2]  = (int16_t)((buf[12] << 8) | buf[13]);	
+    *temperature = 36.53f + (float)(temp_raw / 340.0f);	
 }
 
 /*-------------------------------------------------------------------------------------------*/
@@ -247,7 +218,7 @@ void mpu6050_read(int16_t *gyro,int16_t *accel,float *temperature){
 #define Gyro_G 			0.03051756f				
 #define Gyro_Gr			0.0005426f
 
-#define Offset_Times 	500.0		//校准次数延长至 500 次 (5s)
+#define Offset_Times 	100.0		//校准次数缩短至 100 次 (1s)
 #define Sampling_Time	0.01		//ȡʱ10ms
 
 #define IIR_ORDER     4      //ʹIIR˲Ľ

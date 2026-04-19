@@ -87,7 +87,11 @@ void Control_Loop(void)
     // --- 2. 状态机逻辑 ---
     switch (Car_Mode) 
     {
-        case TASK_IDLE: Control_Reset(); return;
+        case TASK_IDLE: 
+            // 待机时不执行重置，允许查看传感器数据
+            Set_Motor_Speed_Left(0);
+            Set_Motor_Speed_Right(0);
+            return;
 
         /* 任务 1: A -> B 直线 (100cm) */
         case TASK_1_AB_STRAIGHT:
@@ -115,8 +119,8 @@ void Control_Loop(void)
             L_speed = 800 - (int16_t)turn_out; 
             R_speed = 800 + (int16_t)turn_out;
             
-            // 判定 B 点：距离达到 100cm 或 抓到横线
-            if (g_Encoder.distance_cm >= 100.0f || Is_On_CrossLine()) {
+            // 判定 B 点：暂时只靠距离，屏蔽 Is_On_CrossLine 以防误触发导致清零
+            if (g_Encoder.distance_cm >= 100.0f) {
                 Trigger_Feedback(); Car_Mode = TASK_FINISHED;
             }
             break;
