@@ -13,6 +13,10 @@
 #define TASK_2_ABCD_CIRCLE      2   
 #define TASK_3_ACBD_DIAGONAL    3   
 #define TASK_4_FOUR_LAPS        4   
+#define TASK_1_AB_STRAIGHT      1   // 任务1：A->B 直线 (200cm)
+#define TASK_2_ABCD_CIRCLE      2   // 任务2：A->B->C->D->A 矩形环
+#define TASK_3_ACBD_DIAGONAL    3   // 任务3：A->C->B->D->A 对角线环
+#define TASK_4_FOUR_LAPS        4   // 任务4：跑4圈
 #define TASK_FINISHED           100 
 
 /* --- 2. 控制器与状态变量 --- */

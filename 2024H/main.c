@@ -17,6 +17,8 @@ volatile uint8_t g_vofa_send_flag = 0;
 void Debug_Sensors_Display(void);
 extern float pitch2, roll2, Yaw;
 static volatile uint8_t g_ahrs_update_flag = 0;
+static uint32_t g_heartbeat = 0;      // 心跳计数器
+static uint32_t g_interrupt_cnt = 0;  // 中断计数器
 
 void Yaw_Reset(void)
 {
@@ -61,7 +63,9 @@ void Key_Scan_Proc(void)
         if (!(gpiob_state & DL_GPIO_PIN_3)) {
             delay_ms(20);
             if (!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_3))) {
-                Control_Reset(); Yaw_Reset(); Reset_Encoder_Distance();
+                Control_Reset(); 
+                delay_ms(500); // 关键修改：等待陀螺仪读数稳定
+                Yaw_Reset(); Reset_Encoder_Distance();
                 Car_Mode = TASK_1_AB_STRAIGHT;
                 while(!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_3))); 
             }
@@ -70,7 +74,9 @@ void Key_Scan_Proc(void)
         else if (!(gpiob_state & DL_GPIO_PIN_13)) {
             delay_ms(20);
             if (!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_13))) {
-                Control_Reset(); Yaw_Reset(); Reset_Encoder_Distance();
+                Control_Reset();
+                delay_ms(500); // 关键修改
+                Yaw_Reset(); Reset_Encoder_Distance();
                 Car_Mode = TASK_2_ABCD_CIRCLE;
                 while(!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_13)));
             }
@@ -79,7 +85,9 @@ void Key_Scan_Proc(void)
         else if (!(gpiob_state & DL_GPIO_PIN_12)) {
             delay_ms(20);
             if (!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_12))) {
-                Control_Reset(); Yaw_Reset(); Reset_Encoder_Distance();
+                Control_Reset();
+                delay_ms(500); // 关键修改
+                Yaw_Reset(); Reset_Encoder_Distance();
                 Car_Mode = TASK_3_ACBD_DIAGONAL;
                 while(!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_12)));
             }
@@ -88,7 +96,9 @@ void Key_Scan_Proc(void)
         else if (!(gpiob_state & DL_GPIO_PIN_2)) {
             delay_ms(20);
             if (!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_2))) {
-                Control_Reset(); Yaw_Reset(); Reset_Encoder_Distance();
+                Control_Reset();
+                delay_ms(500); // 关键修改
+                Yaw_Reset(); Reset_Encoder_Distance();
                 Car_Mode = TASK_4_FOUR_LAPS;
                 while(!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_2)));
             }
@@ -104,6 +114,11 @@ int main(void)
     OLED_Init();
     OLED_Clear();
     
+    // OLED 初始化测试：开机立刻显示信息并等待 1 秒
+    OLED_ShowString(0, 0, (uint8_t *)"OLED OK!", 16, 1);
+    OLED_Update();
+    delay_ms(1000);
+    
     Control_Init();
     
     // 显式使能 I2C 控制器，否则 MPU6050 无法通信
@@ -113,8 +128,17 @@ int main(void)
     // 显式开启串口发送功能，确保 VOFA+ 能收到数据
     DL_UART_Main_enable(UART_BLUETOOTH_INST);
 
+    // 显式开启串口发送功能，确保 VOFA+ 能收到数据
+    DL_UART_Main_enable(UART_BLUETOOTH_INST);
+
+    // 显式使能全局中断
+    __enable_irq();
+
+    // 开启中断
     DL_Timer_startCounter(TIMER_0_INST);
     NVIC_EnableIRQ(TIMER_0_INST_INT_IRQN);
+    NVIC_EnableIRQ(GPIOB_INT_IRQn); // 开启编码器所在的端口中断
+    NVIC_EnableIRQ(GPIOA_INT_IRQn); // 开启 MPU6050 所在的端口中断
 
     while (1) 
     {
@@ -132,49 +156,45 @@ int main(void)
 
         
 #if DEBUG_SENSORS_OLED
-        if (Car_Mode == TASK_IDLE) { // 仅在待机模式下刷新调试信息，以免干扰运行时的 OLED 显示
-            Debug_Sensors_Display();
-        }
+        // 解除限制：任务运行时也刷新显示，方便实时观察里程和 Yaw
+        Debug_Sensors_Display();
 #endif
 
         delay_ms(10);
     }
 }
 
-/**
- * @brief 灰度传感器 8 路调试可视化输出 (OLED 方案)
- */
 void Debug_Sensors_Display(void)
 {
-    uint8_t sensor_data[8];
-    char disp_buf[16];
-    float current_err = 0;
+    char disp_buf[32]; 
+    g_heartbeat++; 
 
-    // 1. 读取传感器原始数据
-    Sensor_Read_All(sensor_data);
-    // 2. 获取计算出的 PID 误差量
-    current_err = Sensor_Get_Error();
+    // 第一行：显示 Yaw 和 MPU6050 的身份 ID
+    extern uint8_t g_imu_addr;
+    uint8_t who_am_i = 0;
+    extern void I2C_ReadReg(uint8_t DevAddr, uint8_t reg_addr, uint8_t *reg_data, uint8_t count);
+    I2C_ReadReg(g_imu_addr, 0x75, &who_am_i, 1); // 0x75 是 WHO_AM_I 寄存器
 
-    // 3. 构建 8 路状态字符串 (例如 "11000000")
-    for (int i = 0; i < 8; i++) {
-        disp_buf[i] = (sensor_data[i] == 1) ? '1' : '0';
-    }
-    disp_buf[8] = '\0';
+    sprintf(disp_buf, "Y:%.1f ID:%d    ", mpu6050.Yaw, (int)who_am_i);
+    OLED_ShowString(0, 0, (uint8_t *)disp_buf, 16, 1);
 
-    // 4. OLED 刷新显示
-    OLED_ShowString(0, 0, (uint8_t *)"Sensors:", 16, 1);
-    OLED_ShowString(64, 0, (uint8_t *)disp_buf, 16, 1);  // 第一行右侧显示 0101
+    // 第二行：显示原始角速度 G 和 中断计数 iC
+    extern float Gyro_Z_Measeure;
+    sprintf(disp_buf, "G:%.1f iC:%d    ", Gyro_Z_Measeure, (int)(g_interrupt_cnt % 100));
+    OLED_ShowString(0, 16, (uint8_t *)disp_buf, 16, 1);
 
-    sprintf(disp_buf, "Err: %+.2f  ", current_err);
-    OLED_ShowString(0, 16, (uint8_t *)disp_buf, 16, 1);   // 第二行显示偏差量
+    // 第三行：显示编码器实时脉冲 L / R
+    sprintf(disp_buf, "L:%d R:%d      ", (int)g_Encoder.speed_left, (int)g_Encoder.speed_right);
+    OLED_ShowString(0, 32, (uint8_t *)disp_buf, 16, 1);
 
-    // 可以在第三行增加任务状态辅助监控
-    sprintf(disp_buf, "Dist:%.1f cm  ", g_Encoder.distance_cm);
-    OLED_ShowString(0, 32, (uint8_t *)disp_buf, 16, 1);   // 第三行显示当前里程
+    // 第四行：显示累计里程 和 模式
+    sprintf(disp_buf, "D:%.1f M:%d    ", g_Encoder.distance_cm, (int)Car_Mode);
+    OLED_ShowString(0, 48, (uint8_t *)disp_buf, 16, 1); 
 
-    OLED_Update(); // 必须调用更新函数，数据才会刷到屏幕上
+    OLED_Update();
 }
 
+// 恢复为原始的中断函数名，确保中断能够进入
 void TIMER_0_INST_IRQHandler(void)
 {
     switch (DL_Timer_getPendingInterrupt(TIMER_0_INST)) {

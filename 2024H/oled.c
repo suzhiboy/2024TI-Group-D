@@ -7,7 +7,7 @@
 
 /* --- I2C 底层操作函数 --- */
 static void I2C_Delay(void){
-    delay_us(5); // 增加延时，提高软件 I2C 在 80MHz 主频下的稳定性
+    delay_us(10); // 显著降低 I2C 速率到 50kHz 左右，极大提高 80MHz 主频下的稳定性
 }
 
 static void I2C_Start(void){
@@ -23,7 +23,6 @@ static void I2C_Start(void){
 
 static void I2C_Stop(void){
     OLED_SDA_OUT();
-    OLED_SCL_Clr();
     OLED_SDA_Clr();
     I2C_Delay();
     OLED_SCL_Set();
@@ -41,7 +40,6 @@ static uint8_t I2C_WaitAck(void){
     uint8_t ack = OLED_READ_SDA();
     OLED_SCL_Clr();
     I2C_Delay();
-    OLED_SDA_OUT();
     return ack;
 }
 
@@ -178,41 +176,41 @@ void OLED_ShowFloatNum(uint8_t x, uint8_t y, double num, uint8_t intlen, uint8_t
 }
 
 void OLED_Init(void){
-    // 初始化引脚：推挽输出
-    DL_GPIO_initDigitalOutput(OLED_SCL_IOMUX);
-    DL_GPIO_enableOutput(OLED_PORT, OLED_SCL_PIN);
-    
+    // 1. 初始化引脚 (使用 oled.h 中定义的高驱动强度宏)
+    OLED_SCL_INIT();
     OLED_SDA_OUT();
     
+    // 2. 上电稳定期
     OLED_SCL_Set();
     OLED_SDA_Set();
-    delay_ms(100);
+    delay_ms(300); // 进一步增加延时，确保某些廉价 OLED 模块的电荷泵完全启动
 
+    // 3. 增强版初始化序列 (SSD1306 128x64 通用)
     OLED_WR_Byte(0xAE, OLED_CMD); // 关闭显示
-    OLED_WR_Byte(0x00, OLED_CMD); // 设置低列地址
-    OLED_WR_Byte(0x10, OLED_CMD); // 设置高列地址
-    OLED_WR_Byte(0x40, OLED_CMD); // 设置起始行
-    OLED_WR_Byte(0x81, OLED_CMD); // 对比度
-    OLED_WR_Byte(0xCF, OLED_CMD);
-    OLED_WR_Byte(0xA1, OLED_CMD); // 段重映射
-    OLED_WR_Byte(0xC8, OLED_CMD); // COM 扫描方向
-    OLED_WR_Byte(0xA6, OLED_CMD); // 正常显示
-    OLED_WR_Byte(0xA8, OLED_CMD); // 多路复用
-    OLED_WR_Byte(0x3F, OLED_CMD);
-    OLED_WR_Byte(0xD3, OLED_CMD); // 显示偏移
-    OLED_WR_Byte(0x00, OLED_CMD);
-    OLED_WR_Byte(0xD5, OLED_CMD); // 时钟分频
+    OLED_WR_Byte(0xD5, OLED_CMD); // 设置时钟分频
     OLED_WR_Byte(0x80, OLED_CMD);
-    OLED_WR_Byte(0xD9, OLED_CMD); // 预充电
-    OLED_WR_Byte(0xF1, OLED_CMD);
+    OLED_WR_Byte(0xA8, OLED_CMD); // 设置多路复用率
+    OLED_WR_Byte(0x3F, OLED_CMD);
+    OLED_WR_Byte(0xD3, OLED_CMD); // 设置显示偏移
+    OLED_WR_Byte(0x00, OLED_CMD);
+    OLED_WR_Byte(0x40, OLED_CMD); // 设置起始行
+    OLED_WR_Byte(0x8D, OLED_CMD); // 开启电荷泵 (必须)
+    OLED_WR_Byte(0x14, OLED_CMD);
+    OLED_WR_Byte(0x20, OLED_CMD); // 设置内存地址模式 (水平寻址)
+    OLED_WR_Byte(0x00, OLED_CMD);
+    OLED_WR_Byte(0xA1, OLED_CMD); // 段重映射 (左右反转)
+    OLED_WR_Byte(0xC8, OLED_CMD); // COM 扫描方向 (上下反转)
     OLED_WR_Byte(0xDA, OLED_CMD); // COM 引脚配置
     OLED_WR_Byte(0x12, OLED_CMD);
-    OLED_WR_Byte(0xDB, OLED_CMD); // VCOMH
+    OLED_WR_Byte(0x81, OLED_CMD); // 对比度设置 (最高)
+    OLED_WR_Byte(0xFF, OLED_CMD);
+    OLED_WR_Byte(0xD9, OLED_CMD); // 设置预充电周期
+    OLED_WR_Byte(0xF1, OLED_CMD);
+    OLED_WR_Byte(0xDB, OLED_CMD); // 设置 VCOMH 电平
     OLED_WR_Byte(0x40, OLED_CMD);
-    OLED_WR_Byte(0x20, OLED_CMD); // 寻址模式
-    OLED_WR_Byte(0x02, OLED_CMD);
-    OLED_WR_Byte(0x8D, OLED_CMD); // 电荷泵
-    OLED_WR_Byte(0x14, OLED_CMD);
+    OLED_WR_Byte(0xA4, OLED_CMD); // 全屏显示 (跟随 RAM)
+    OLED_WR_Byte(0xA6, OLED_CMD); // 正常显示 (不反相)
+    
     OLED_Clear();
     OLED_WR_Byte(0xAF, OLED_CMD); // 开启显示
 }

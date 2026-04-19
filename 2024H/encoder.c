@@ -12,7 +12,13 @@ static volatile int32_t right_pulse_count = 0;
  * @brief 编码器底层初始化
  */
 void Encoder_Init(void) {
-    // 使用 MSPM0 标准的 GPIOB 中断宏
+    // 1. 显式清除 GPIOB 可能存在的残留中断标志
+    DL_GPIO_clearInterruptStatus(GPIOB, DL_GPIO_PIN_6 | DL_GPIO_PIN_7 | DL_GPIO_PIN_8 | DL_GPIO_PIN_9);
+    
+    // 2. 强制开启引脚的中断使能 (防止 SysConfig 没勾选使能)
+    DL_GPIO_enableInterrupt(GPIOB, DL_GPIO_PIN_6 | DL_GPIO_PIN_7);
+    
+    // 3. 开启 GPIOB 的 NVIC 中断
     NVIC_EnableIRQ(GPIOB_INT_IRQn);
 }
 
@@ -23,6 +29,13 @@ void Encoder_Init(void) {
 void GROUP1_IRQHandler(void) {
     // 获取中断状态寄存器 (同时检查 GPIOB)
     uint32_t status = DL_GPIO_getEnabledInterruptStatus(GPIOB, DL_GPIO_PIN_6 | DL_GPIO_PIN_7);
+    // 1. 获取分组中断挂起状态
+    uint32_t pendingGroup = DL_Interrupt_getPendingGroup(DL_INTERRUPT_GROUP_1);
+
+    // 2. 判断是否为 GPIOB 触发
+    if (pendingGroup & DL_INTERRUPT_GROUP1_IIDX_GPIOB) {
+        // 获取 GPIOB 所有已使能中断引脚的状态
+        uint32_t gpio_status = DL_GPIO_getEnabledInterruptStatus(GPIOB, 0xFFFFFFFF);
 
     // --- 左轮正交解码 (PB7 作为 A 相中断源) ---
     if (status & DL_GPIO_PIN_7) {
@@ -36,6 +49,17 @@ void GROUP1_IRQHandler(void) {
         
         DL_GPIO_clearInterruptStatus(GPIOB, DL_GPIO_PIN_7);
     }
+        // --- 左轮正交解码 (PB7 作为 A 相中断源) ---
+        if (gpio_status & DL_GPIO_PIN_7) {
+            // 修正：确保读取结果转换为标准的 0 或 1
+            uint8_t phase_a = DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_7) ? 1 : 0;
+            uint8_t phase_b = DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_9) ? 1 : 0;
+            
+            if (phase_a != phase_b) left_pulse_count++;
+            else left_pulse_count--;
+            
+            DL_GPIO_clearInterruptStatus(GPIOB, DL_GPIO_PIN_7);
+        }
 
     // --- 右轮正交解码 (PB6 作为 A 相中断源) ---
     if (status & DL_GPIO_PIN_6) {
@@ -47,15 +71,24 @@ void GROUP1_IRQHandler(void) {
         else right_pulse_count--;
         
         DL_GPIO_clearInterruptStatus(GPIOB, DL_GPIO_PIN_6);
+        // --- 右轮正交解码 (PB6 作为 A 相中断源) ---
+        if (gpio_status & DL_GPIO_PIN_6) {
+            uint8_t phase_a = DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_6) ? 1 : 0;
+            uint8_t phase_b = DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_8) ? 1 : 0;
+            
+            // 修正：如果你的小车前进时里程不增反减，请将这里的 ++ 和 -- 对换
+            if (phase_a != phase_b) right_pulse_count++;
+            else right_pulse_count--;
+            
+            DL_GPIO_clearInterruptStatus(GPIOB, DL_GPIO_PIN_6);
+        }
     }
 }
 
 /**
  * @brief 10ms 数据搬运与解算函数
- * @note  必须在 10ms 定时器中断中调用
  */
 void Encoder_UpdateData_10ms(void) {
-    // 1. 提取当前速度增量
     g_Encoder.speed_left = left_pulse_count;
     g_Encoder.speed_right = right_pulse_count;
     
@@ -74,9 +107,6 @@ void Encoder_UpdateData_10ms(void) {
     g_Encoder.distance_cm = avg_pulses * PULSE_TO_CM;
 }
 
-/**
- * @brief 清除里程计 (用于盲走 100cm 任务开始前)
- */
 void Encoder_Clear(void) {
     g_Encoder.pulses_left = 0;
     g_Encoder.pulses_right = 0;
