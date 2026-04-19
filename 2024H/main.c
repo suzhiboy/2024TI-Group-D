@@ -112,6 +112,9 @@ int main(void)
     Control_Init();
     mpu6050_init();
 
+    // 显式使能全局中断
+    __enable_irq();
+
     DL_Timer_startCounter(TIMER_0_INST);
     NVIC_EnableIRQ(TIMER_0_INST_INT_IRQN);
 
@@ -124,7 +127,8 @@ int main(void)
         Key_Scan_Proc();
 
 #if DEBUG_SENSORS_OLED
-        if (Car_Mode == TASK_IDLE) { // 仅在待机模式下刷新调试信息，以免干扰运行时的 OLED 显示
+        // 增加：在待机和任务结束时都显示，方便调试
+        if (Car_Mode == TASK_IDLE || Car_Mode == TASK_FINISHED) { 
             Debug_Sensors_Display();
         }
 #endif
@@ -154,18 +158,20 @@ void Debug_Sensors_Display(void)
     disp_buf[8] = '\0';
 
     // 4. OLED 刷新显示
-    OLED_ShowString(0, 0, (uint8_t *)"Sensors:", 16, 1);
-    OLED_ShowString(64, 0, (uint8_t *)disp_buf, 16, 1);  // 第一行右侧显示 0101
+    // 第一行：显示 Yaw 和 原始 Z 轴角速度 (判断硬件是否采集)
+    extern float Gyro_Z_Measeure;
+    sprintf(disp_buf, "Y:%.1f G:%.1f ", mpu6050.Yaw, Gyro_Z_Measeure);
+    OLED_ShowString(0, 0, (uint8_t *)disp_buf, 16, 1);
 
     sprintf(disp_buf, "Err: %+.2f  ", current_err);
     OLED_ShowString(0, 16, (uint8_t *)disp_buf, 16, 1);   // 第二行显示偏差量
 
-    // 可以在第三行增加任务状态辅助监控
-    sprintf(disp_buf, "Dist:%.1f cm  ", g_Encoder.distance_cm);
-    OLED_ShowString(0, 32, (uint8_t *)disp_buf, 16, 1);   // 第三行显示当前里程
+    // 第三行：显示实时左右脉冲 (判断编码器是否捕获)
+    sprintf(disp_buf, "L:%ld R:%ld    ", g_Encoder.speed_left, g_Encoder.speed_right);
+    OLED_ShowString(0, 32, (uint8_t *)disp_buf, 16, 1);
 
-    // 增加：第四行显示原始脉冲，判断硬件信号
-    sprintf(disp_buf, "L:%ld R:%ld    ", g_Encoder.pulses_left, g_Encoder.pulses_right);
+    // 第四行：显示累积里程
+    sprintf(disp_buf, "Dist:%.1f cm  ", g_Encoder.distance_cm);
     OLED_ShowString(0, 48, (uint8_t *)disp_buf, 16, 1); 
 
     OLED_Update(); // 必须调用更新函数，数据才会刷到屏幕上
