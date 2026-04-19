@@ -111,6 +111,11 @@ int main(void)
     OLED_Init();
     OLED_Clear();
     
+    // OLED 初始化测试：开机立刻显示信息并等待 1 秒
+    OLED_ShowString(0, 0, (uint8_t *)"OLED OK!", 16, 1);
+    OLED_Update();
+    delay_ms(1000);
+    
     Control_Init();
     mpu6050_init();
 

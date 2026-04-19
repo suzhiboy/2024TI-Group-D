@@ -19,18 +19,28 @@
 
 #define OLED_READ_SDA()     ((DL_GPIO_readPins(OLED_PORT, OLED_SDA_PIN) & OLED_SDA_PIN) ? 1 : 0)
 
-// SDA 输出模式：标准推挽输出
+// SDA 输出模式：开启高驱动强度和上拉
 #define OLED_SDA_OUT()      { \
-    DL_GPIO_initDigitalOutput(OLED_SDA_IOMUX); \
+    DL_GPIO_initDigitalOutputFeatures(OLED_SDA_IOMUX, \
+        DL_GPIO_INVERSION_DISABLE, DL_GPIO_RESISTOR_PULL_UP, \
+        DL_GPIO_DRIVE_STRENGTH_HIGH, DL_GPIO_HIZ_DISABLE); \
     DL_GPIO_enableOutput(OLED_PORT, OLED_SDA_PIN); \
 }
 
-// SDA 输入模式：尝试开启内部上拉 (如果硬件支持)
+// SDA 输入模式：开启上拉
 #define OLED_SDA_IN()       { \
     DL_GPIO_disableOutput(OLED_PORT, OLED_SDA_PIN); \
     DL_GPIO_initDigitalInputFeatures(OLED_SDA_IOMUX, \
         DL_GPIO_INVERSION_DISABLE, DL_GPIO_RESISTOR_PULL_UP, \
         DL_GPIO_HYSTERESIS_DISABLE, DL_GPIO_WAKEUP_DISABLE); \
+}
+
+// SCL 同样使用高驱动强度
+#define OLED_SCL_INIT()     { \
+    DL_GPIO_initDigitalOutputFeatures(OLED_SCL_IOMUX, \
+        DL_GPIO_INVERSION_DISABLE, DL_GPIO_RESISTOR_PULL_UP, \
+        DL_GPIO_DRIVE_STRENGTH_HIGH, DL_GPIO_HIZ_DISABLE); \
+    DL_GPIO_enableOutput(OLED_PORT, OLED_SCL_PIN); \
 }
 
 #define OLED_CMD  0
