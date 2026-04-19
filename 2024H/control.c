@@ -58,7 +58,8 @@ void Control_Init(void)
     
     // 初始化 PID
     PID_Init(&pid_line, 4.8f, 0.01f, 1.2f, 400.0f, -400.0f, 20.0f);
-    PID_Init(&pid_yaw, 30.0f, 0.0f, 5.0f, 350.0f, -350.0f, 0.0f);
+    // 增加 D 项从 5.0 -> 12.0，增强对角度偏差的预判
+    PID_Init(&pid_yaw, 45.0f, 0.0f, 12.0f, 400.0f, -400.0f, 0.0f);
     
     Control_Reset();
 }
@@ -69,6 +70,8 @@ void Control_Init(void)
 void Control_Loop(void)
 {
     float turn_out = 0;
+    float yaw_out = 0;
+    float line_out = 0;
     int16_t L_speed = 0, R_speed = 0;
 
     // --- 0. 接入真实的编码器数据更新 ---
@@ -88,7 +91,7 @@ void Control_Loop(void)
 
         /* 任务 1: A -> B 直线 (100cm) */
         case TASK_1_AB_STRAIGHT:
-            // Yaw 角度归一化处理 (最短路径转向)
+            // 1. 陀螺仪角度闭环
             {
                 float target_yaw = 0.0f;
                 float error_yaw = target_yaw - mpu6050.Yaw;
@@ -96,8 +99,19 @@ void Control_Loop(void)
                 else if (error_yaw < -180.0f) error_yaw += 360.0f;
                 pid_yaw.target = mpu6050.Yaw + error_yaw;
             }
+            yaw_out = PID_Calc_Positional(&pid_yaw, mpu6050.Yaw);
+
+            // 2. 灰度传感器横向偏差补偿 (如果检测到线)
+            float line_err = Sensor_Get_Error();
+            if (line_err < 5.0f) { // 正常循迹误差范围内
+                line_out = PID_Calc_Positional(&pid_line, line_err);
+            } else {
+                line_out = 0; // 丢线或全白时不干扰
+            }
             
-            turn_out = PID_Calc_Positional(&pid_yaw, mpu6050.Yaw);
+            // 3. 融合输出：角度为主，灰度为辅
+            turn_out = yaw_out + (line_out * 0.6f); 
+            
             L_speed = 800 - (int16_t)turn_out; 
             R_speed = 800 + (int16_t)turn_out;
             

@@ -58,7 +58,9 @@ void Key_Scan_Proc(void)
         if (!(gpiob_state & DL_GPIO_PIN_3)) {
             delay_ms(20);
             if (!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_3))) {
-                Control_Reset(); Yaw_Reset(); Reset_Encoder_Distance();
+                Control_Reset(); 
+                delay_ms(500); // 关键修改：等待陀螺仪读数稳定
+                Yaw_Reset(); Reset_Encoder_Distance();
                 Car_Mode = TASK_1_AB_STRAIGHT;
                 while(!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_3))); 
             }
@@ -67,7 +69,9 @@ void Key_Scan_Proc(void)
         else if (!(gpiob_state & DL_GPIO_PIN_13)) {
             delay_ms(20);
             if (!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_13))) {
-                Control_Reset(); Yaw_Reset(); Reset_Encoder_Distance();
+                Control_Reset();
+                delay_ms(500); // 关键修改
+                Yaw_Reset(); Reset_Encoder_Distance();
                 Car_Mode = TASK_2_ABCD_CIRCLE;
                 while(!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_13)));
             }
@@ -76,7 +80,9 @@ void Key_Scan_Proc(void)
         else if (!(gpiob_state & DL_GPIO_PIN_12)) {
             delay_ms(20);
             if (!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_12))) {
-                Control_Reset(); Yaw_Reset(); Reset_Encoder_Distance();
+                Control_Reset();
+                delay_ms(500); // 关键修改
+                Yaw_Reset(); Reset_Encoder_Distance();
                 Car_Mode = TASK_3_ACBD_DIAGONAL;
                 while(!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_12)));
             }
@@ -85,7 +91,9 @@ void Key_Scan_Proc(void)
         else if (!(gpiob_state & DL_GPIO_PIN_2)) {
             delay_ms(20);
             if (!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_2))) {
-                Control_Reset(); Yaw_Reset(); Reset_Encoder_Distance();
+                Control_Reset();
+                delay_ms(500); // 关键修改
+                Yaw_Reset(); Reset_Encoder_Distance();
                 Car_Mode = TASK_4_FOUR_LAPS;
                 while(!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_2)));
             }
