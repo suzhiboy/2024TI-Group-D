@@ -4,7 +4,7 @@
 // 实例化全局数据中心变量
 Encoder_Data_t g_Encoder = {0};
 
-// 内部软件计数器 (volatile 防止编译器过度优化)
+// 内部软件计数器
 static volatile int32_t left_pulse_count = 0;
 static volatile int32_t right_pulse_count = 0;
 
@@ -15,7 +15,7 @@ void Encoder_Init(void) {
     // 1. 显式清除 GPIOB 可能存在的残留中断标志
     DL_GPIO_clearInterruptStatus(GPIOB, DL_GPIO_PIN_6 | DL_GPIO_PIN_7 | DL_GPIO_PIN_8 | DL_GPIO_PIN_9);
     
-    // 2. 强制开启引脚的中断使能 (防止 SysConfig 没勾选使能)
+    // 2. 强制开启引脚的中断使能
     DL_GPIO_enableInterrupt(GPIOB, DL_GPIO_PIN_6 | DL_GPIO_PIN_7);
     
     // 3. 开启 GPIOB 的 NVIC 中断
@@ -23,60 +23,35 @@ void Encoder_Init(void) {
 }
 
 /**
- * @brief GPIO 中断服务函数 (正交解码核心)
- * @note  处理 PB7(左轮A) 和 PB6(右轮A) 的双边沿中断
+ * @brief GPIO 中断服务函数 (精简后的正交解码核心)
  */
 void GROUP1_IRQHandler(void) {
-    // 获取中断状态寄存器 (同时检查 GPIOB)
-    uint32_t status = DL_GPIO_getEnabledInterruptStatus(GPIOB, DL_GPIO_PIN_6 | DL_GPIO_PIN_7);
     // 1. 获取分组中断挂起状态
     uint32_t pendingGroup = DL_Interrupt_getPendingGroup(DL_INTERRUPT_GROUP_1);
 
     // 2. 判断是否为 GPIOB 触发
     if (pendingGroup & DL_INTERRUPT_GROUP1_IIDX_GPIOB) {
-        // 获取 GPIOB 所有已使能中断引脚的状态
-        uint32_t gpio_status = DL_GPIO_getEnabledInterruptStatus(GPIOB, 0xFFFFFFFF);
+        // 获取 GPIOB 已触发的中断标志
+        uint32_t gpio_status = DL_GPIO_getEnabledInterruptStatus(GPIOB, DL_GPIO_PIN_6 | DL_GPIO_PIN_7);
 
-    // --- 左轮正交解码 (PB7 作为 A 相中断源) ---
-    if (status & DL_GPIO_PIN_7) {
-        // 使用 !! 确保将位掩码转换为逻辑 0 或 1，防止位位置不同导致的比较错误
-        bool phase_a = !!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_7));
-        bool phase_b = !!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_9));
-        
-        // 修正：对调 ++ 和 -- 以修正极性
-        if (phase_a != phase_b) left_pulse_count--;
-        else left_pulse_count++;
-        
-        DL_GPIO_clearInterruptStatus(GPIOB, DL_GPIO_PIN_7);
-    }
-        // --- 左轮正交解码 (PB7 作为 A 相中断源) ---
+        // --- 左轮正交解码 (PB7) ---
         if (gpio_status & DL_GPIO_PIN_7) {
-            // 修正：确保读取结果转换为标准的 0 或 1
-            uint8_t phase_a = DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_7) ? 1 : 0;
-            uint8_t phase_b = DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_9) ? 1 : 0;
+            uint8_t phase_a = !!DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_7);
+            uint8_t phase_b = !!DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_9);
             
-            if (phase_a != phase_b) left_pulse_count++;
-            else left_pulse_count--;
+            // 修正后的左轮极性
+            if (phase_a != phase_b) left_pulse_count--;
+            else left_pulse_count++;
             
             DL_GPIO_clearInterruptStatus(GPIOB, DL_GPIO_PIN_7);
         }
 
-    // --- 右轮正交解码 (PB6 作为 A 相中断源) ---
-    if (status & DL_GPIO_PIN_6) {
-        bool phase_a = !!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_6));
-        bool phase_b = !!(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_8));
-        
-        // 修正：对调 ++ 和 -- 以修正极性
-        if (phase_a != phase_b) right_pulse_count++;
-        else right_pulse_count--;
-        
-        DL_GPIO_clearInterruptStatus(GPIOB, DL_GPIO_PIN_6);
-        // --- 右轮正交解码 (PB6 作为 A 相中断源) ---
+        // --- 右轮正交解码 (PB6) ---
         if (gpio_status & DL_GPIO_PIN_6) {
-            uint8_t phase_a = DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_6) ? 1 : 0;
-            uint8_t phase_b = DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_8) ? 1 : 0;
+            uint8_t phase_a = !!DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_6);
+            uint8_t phase_b = !!DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_8);
             
-            // 修正：如果你的小车前进时里程不增反减，请将这里的 ++ 和 -- 对换
+            // 修正后的右轮极性
             if (phase_a != phase_b) right_pulse_count++;
             else right_pulse_count--;
             
@@ -92,17 +67,12 @@ void Encoder_UpdateData_10ms(void) {
     g_Encoder.speed_left = left_pulse_count;
     g_Encoder.speed_right = right_pulse_count;
     
-    // 2. 累加总脉冲数 (在清零前累加)
     g_Encoder.pulses_left += g_Encoder.speed_left;
     g_Encoder.pulses_right += g_Encoder.speed_right;
 
-    // 3. 清零计数器
     left_pulse_count = 0;
     right_pulse_count = 0;
 
-    // 4. 物理量换算 (厘米解算)
-    // 距离计算公式：(左脉冲 + 右脉冲) / 2.0 * 系数
-    // 注意：右轮已经取反，所以这里用加法
     float avg_pulses = (float)(g_Encoder.pulses_left + g_Encoder.pulses_right) / 2.0f;
     g_Encoder.distance_cm = avg_pulses * PULSE_TO_CM;
 }

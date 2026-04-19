@@ -7,13 +7,7 @@
 #include "main.h"
 #include <stdio.h>
 
-/* --- 1. 任务模式定义 --- */
-#define TASK_IDLE               0  
-#define TASK_1_AB_STRAIGHT      1   // 任务1：A->B 直线 (200cm)
-#define TASK_2_ABCD_CIRCLE      2   // 任务2：A->B->C->D->A 矩形环
-#define TASK_3_ACBD_DIAGONAL    3   // 任务3：A->C->B->D->A 对角线环
-#define TASK_4_FOUR_LAPS        4   // 任务4：跑4圈
-#define TASK_FINISHED           100 
+/* --- 1. 任务模式定义已移至 control.h，此处直接使用 --- */
 
 /* --- 2. 控制器与状态变量 --- */
 PID_TypeDef pid_line;  
@@ -69,11 +63,9 @@ void Control_Init(void)
     PID_Init(&pid_line, 0.5f, 0.0f, 0.1f, 3.0f, -3.0f, 1.0f);
     
     // 2. 角度环 (输出为速度偏差量)
-    // 增加 Kp 和限幅，让外环能下达更强力的差速指令
     PID_Init(&pid_yaw, 3.0f, 0.02f, 1.0f, 10.0f, -10.0f, 2.0f);
 
     // 3. 速度内环 (输出为 PWM 值 0-2000)
-    // 根据您的反馈：加大 Kp 提升响应速度，加大 Ki 消除静差，减小 Kd 减少毛刺
     PID_Init(&pid_speed_L, 80.0f, 5.0f, 0.5f, 2000.0f, 0.0f, 1000.0f);
     PID_Init(&pid_speed_R, 80.0f, 5.0f, 0.5f, 2000.0f, 0.0f, 1000.0f);
     
@@ -93,7 +85,6 @@ void Control_Loop(void)
     Encoder_UpdateData_10ms(); 
 
     // --- 1. 软件一阶低通滤波 (解决 ±1 脉冲跳动导致的毛刺) ---
-    // 公式: 0.7 * 上次结果 + 0.3 * 本次采样
     filtered_L = filtered_L * 0.7f + (float)g_Encoder.speed_left * 0.3f;
     filtered_R = filtered_R * 0.7f + (float)g_Encoder.speed_right * 0.3f;
 
@@ -193,7 +184,7 @@ void Control_Loop(void)
             break;
     }
 
-    // --- 4. 内环计算：使用滤波后的平滑速度 ---
+    // --- 4. 内环计算并输出 PWM ---
     final_L_pwm = (int16_t)PID_Calc_Positional(&pid_speed_L, filtered_L);
     final_R_pwm = (int16_t)PID_Calc_Positional(&pid_speed_R, filtered_R);
 
@@ -210,10 +201,10 @@ void Vofa_Send_Debug(void)
 {
     float data[5];
     data[0] = pid_speed_L.target;
-    data[1] = filtered_L; // 发送平滑后的左轮速度 (带小数)
+    data[1] = filtered_L; 
     data[2] = pid_speed_R.target;
-    data[3] = filtered_R; // 发送平滑后的右轮速度 (带小数)
-    data[4] = Gyro_Z_Measeure; // 临时改发实时角速度，用于调试灵敏度
+    data[3] = filtered_R; 
+    data[4] = Gyro_Z_Measeure; 
 
     for(int i=0; i<5; i++) {
         uint8_t *p = (uint8_t *)&data[i];
