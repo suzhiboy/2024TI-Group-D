@@ -20,7 +20,7 @@ uint8_t Current_Step = 0;
 uint8_t Lap_Counter = 0;       
 uint16_t Feedback_Timer = 0;   
 
-// 滤波后的平滑速度变量 (全局定义以便串口发送小数位)
+// 滤波后的平滑速度变量
 static float filtered_L = 0;
 static float filtered_R = 0;
 
@@ -84,7 +84,7 @@ void Control_Loop(void)
     // --- 0. 更新传感器数据 ---
     Encoder_UpdateData_10ms(); 
 
-    // --- 1. 软件一阶低通滤波 (解决 ±1 脉冲跳动导致的毛刺) ---
+    // --- 1. 软件一阶低通滤波 ---
     filtered_L = filtered_L * 0.7f + (float)g_Encoder.speed_left * 0.3f;
     filtered_R = filtered_R * 0.7f + (float)g_Encoder.speed_right * 0.3f;
 
@@ -95,7 +95,7 @@ void Control_Loop(void)
         DL_GPIO_clearPins(GPIOA, DL_GPIO_PIN_7);
     }
 
-    // --- 3. 状态机逻辑：计算目标速度 (单位: 脉冲/10ms) ---
+    // --- 3. 状态机逻辑：计算目标速度 ---
     switch (Car_Mode) 
     {
         case TASK_IDLE: 
@@ -116,7 +116,7 @@ void Control_Loop(void)
 
         case TASK_4_FOUR_LAPS:
         case TASK_2_ABCD_CIRCLE:
-            if (Current_Step == 0) { // A -> B
+            if (Current_Step == 0) { // A -> B (直线 100cm)
                 base_speed = 10.0f; pid_yaw.target = 0.0f;
                 turn_out = PID_Calc_Positional(&pid_yaw, mpu6050.Yaw);
                 pid_speed_L.target = base_speed - turn_out;
@@ -125,7 +125,7 @@ void Control_Loop(void)
                     Current_Step = 1; Reset_Encoder_Distance(); Trigger_Feedback();
                 }
             } 
-            else if (Current_Step == 1) { // B -> C
+            else if (Current_Step == 1) { // B -> C (弧线循迹)
                 base_speed = 8.5f;
                 turn_out = PID_Calc_Positional(&pid_line, Sensor_Get_Error());
                 pid_speed_L.target = base_speed + turn_out;
@@ -134,7 +134,7 @@ void Control_Loop(void)
                     Current_Step = 2; Reset_Encoder_Distance(); Trigger_Feedback();
                 }
             }
-            else if (Current_Step == 2) { // C -> D
+            else if (Current_Step == 2) { // C -> D (直线 100cm)
                 base_speed = 10.0f; 
                 float err = 180.0f - mpu6050.Yaw;
                 if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
@@ -146,7 +146,7 @@ void Control_Loop(void)
                     Current_Step = 3; Reset_Encoder_Distance(); Trigger_Feedback();
                 }
             }
-            else if (Current_Step == 3) { // D -> A
+            else if (Current_Step == 3) { // D -> A (弧线循迹)
                 base_speed = 7.5f;
                 turn_out = PID_Calc_Positional(&pid_line, Sensor_Get_Error());
                 pid_speed_L.target = base_speed + turn_out;
@@ -163,9 +163,8 @@ void Control_Loop(void)
             break;
 
         case TASK_3_ACBD_DIAGONAL:
-            base_speed = 10.0f;
-            if (Current_Step == 0) { // A -> C
-                pid_yaw.target = 38.7f;
+            if (Current_Step == 0) { // A -> C (对角线 128.1cm, 38.7°)
+                base_speed = 10.0f; pid_yaw.target = 38.7f;
                 float err = 38.7f - mpu6050.Yaw;
                 if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
                 pid_yaw.target = mpu6050.Yaw + err;
@@ -174,6 +173,42 @@ void Control_Loop(void)
                 pid_speed_R.target = base_speed + turn_out;
                 if (g_Encoder.distance_cm >= 128.1f || Is_On_CrossLine()) { 
                     Current_Step = 1; Reset_Encoder_Distance(); Trigger_Feedback(); 
+                }
+            }
+            else if (Current_Step == 1) { // C -> B (垂直边 80cm, -90.0°)
+                base_speed = 10.0f; pid_yaw.target = -90.0f;
+                float err = -90.0f - mpu6050.Yaw;
+                if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
+                pid_yaw.target = mpu6050.Yaw + err;
+                turn_out = PID_Calc_Positional(&pid_yaw, mpu6050.Yaw);
+                pid_speed_L.target = base_speed - turn_out;
+                pid_speed_R.target = base_speed + turn_out;
+                if (g_Encoder.distance_cm >= 80.0f || Is_On_CrossLine()) { 
+                    Current_Step = 2; Reset_Encoder_Distance(); Trigger_Feedback(); 
+                }
+            }
+            else if (Current_Step == 2) { // B -> D (对角线 128.1cm, 141.3°)
+                base_speed = 10.0f; pid_yaw.target = 141.3f;
+                float err = 141.3f - mpu6050.Yaw;
+                if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
+                pid_yaw.target = mpu6050.Yaw + err;
+                turn_out = PID_Calc_Positional(&pid_yaw, mpu6050.Yaw);
+                pid_speed_L.target = base_speed - turn_out;
+                pid_speed_R.target = base_speed + turn_out;
+                if (g_Encoder.distance_cm >= 128.1f || Is_On_CrossLine()) { 
+                    Current_Step = 3; Reset_Encoder_Distance(); Trigger_Feedback(); 
+                }
+            }
+            else if (Current_Step == 3) { // D -> A (垂直边 80cm, -90.0°)
+                base_speed = 10.0f; pid_yaw.target = -90.0f;
+                float err = -90.0f - mpu6050.Yaw;
+                if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
+                pid_yaw.target = mpu6050.Yaw + err;
+                turn_out = PID_Calc_Positional(&pid_yaw, mpu6050.Yaw);
+                pid_speed_L.target = base_speed - turn_out;
+                pid_speed_R.target = base_speed + turn_out;
+                if (g_Encoder.distance_cm >= 80.0f || Is_On_CrossLine()) { 
+                    Trigger_Feedback(); Car_Mode = TASK_FINISHED; 
                 }
             }
             break;
@@ -192,8 +227,6 @@ void Control_Loop(void)
     Set_Motor_Speed_Right(final_R_pwm);
 }
 
-extern float Gyro_Z_Measeure;
-
 /**
  * @brief VOFA+ 数据外送
  */
@@ -204,7 +237,7 @@ void Vofa_Send_Debug(void)
     data[1] = filtered_L; 
     data[2] = pid_speed_R.target;
     data[3] = filtered_R; 
-    data[4] = Gyro_Z_Measeure; 
+    data[4] = mpu6050.Yaw; // 恢复发送角度值，目标值为 0.0
 
     for(int i=0; i<5; i++) {
         uint8_t *p = (uint8_t *)&data[i];
