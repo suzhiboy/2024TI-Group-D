@@ -108,8 +108,8 @@ int main(void)
     
     Control_Init();
     
-    // 显式使能 I2C 并初始化
-    DL_I2C_enableController(I2C_0_INST);
+    // 显式使能 I2C 并初始化 (软件模拟 I2C 不需要硬件使能)
+    // DL_I2C_enableController(I2C_0_INST);
     mpu6050_init();
     
     // 获取一次 ID 缓存，避免 OLED 刷新占用总线
