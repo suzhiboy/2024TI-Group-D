@@ -32,6 +32,9 @@ extern float Gyro_Z_Measeure;
 void MPU6050_ReadDatas_Proc(void);
 //获取欧拉角
 void AHRS_Geteuler(void);
+void AHRS_Geteuler_WithDt(float dt_s);
+void MPU6050_ResetBiasCalibration(void);
+bool MPU6050_Is_Calibrated(void);
 void Yaw_Reset(void);
 
 //卡尔曼滤波参数结构体
@@ -45,7 +48,9 @@ struct KalmanFilter{
 };
 
 //MyMath
+#ifndef M_PI
 #define M_PI  				(float)3.1415926535f
+#endif
 #define squa( Sq )       	(((float)Sq)*((float)Sq))
 #define toRad( Math_D )	  	((float)(Math_D)*0.0174532925f)
 #define toDeg( Math_R )	  	((float)(Math_R)*57.2957795f)

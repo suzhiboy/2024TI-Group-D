@@ -179,6 +179,7 @@ void mpu6050_init(void) {
     Single_WriteI2C(g_imu_addr, MPU_CONFIG, 0x06);
     Single_WriteI2C(g_imu_addr, GYRO_CONFIG, 0x18);
     Single_WriteI2C(g_imu_addr, ACCEL_CONFIG, 0x18); 
+    MPU6050_ResetBiasCalibration();
 }
 
 void mpu6050_read(int16_t *gyro, int16_t *accel, float *temperature) {
@@ -195,16 +196,49 @@ void mpu6050_read(int16_t *gyro, int16_t *accel, float *temperature) {
 }
 
 MPU6050_DEF mpu6050;
+// 姿态解算的物理时间步长（单位：秒）
 #define Sampling_Time 0.01f
 float pitch2 = 0, roll2 = 0, Yaw = 0;
+// 当前瞬间 Z 轴的角速度测量值（单位：度/秒，deg/s）
 float Gyro_Z_Measeure = 0;
+// 零偏校准采样计数器
+static uint16_t s_gyro_bias_calib_cnt = 0;
+static float s_gyro_bias_sum_z = 0.0f;
+// 经过一阶软件低通滤波（LPF）后的 Z 轴角速度
+static float s_gyro_z_lpf = 0.0f;
+
+// 零偏校准的固定目标总采样次数
+#define GYRO_BIAS_CALIB_SAMPLES 100U
+// Z 轴方向符号校正系数
+#define GYRO_Z_SIGN -1.0f
+
+#ifndef GYRO_BIAS_CALIB_SAMPLES
+#define GYRO_BIAS_CALIB_SAMPLES 100U
+#endif
+#ifndef GYRO_Z_SIGN
+#define GYRO_Z_SIGN -1.0f
+#endif
+
+void MPU6050_ResetBiasCalibration(void) {
+    s_gyro_bias_calib_cnt = 0;
+    s_gyro_bias_sum_z = 0.0f;
+    mpu6050.Gyro_Offset[2] = 0.0f;
+    mpu6050.Gyro_Calulate[2] = 0.0f;
+    mpu6050.Gyro_Average[2] = 0.0f;
+    Gyro_Z_Measeure = 0.0f;
+    s_gyro_z_lpf = 0.0f;
+}
 
 void MPU6050_ReadDatas_Proc(void) {
-    static uint16_t time = 0;
     mpu6050_read(mpu6050.Gyro_Original, mpu6050.Accel_Original, &mpu6050.temperature);
-    if (time < 100) {
-        time++;
-        mpu6050.Gyro_Offset[2] += (float)mpu6050.Gyro_Original[2] / 100.0f;
+    if (s_gyro_bias_calib_cnt < GYRO_BIAS_CALIB_SAMPLES) {
+        s_gyro_bias_calib_cnt++;
+        s_gyro_bias_sum_z += (float)mpu6050.Gyro_Original[2];
+        if (s_gyro_bias_calib_cnt == GYRO_BIAS_CALIB_SAMPLES) {
+            mpu6050.Gyro_Offset[2] = s_gyro_bias_sum_z / (float)GYRO_BIAS_CALIB_SAMPLES;
+        }
+        mpu6050.Gyro_Calulate[2] = 0.0f;
+        mpu6050.Gyro_Average[2] = 0.0f;
     } else {
         mpu6050.Gyro_Calulate[2] = mpu6050.Gyro_Original[2] - mpu6050.Gyro_Offset[2];
         mpu6050.Gyro_Average[2] = mpu6050.Gyro_Calulate[2];
@@ -212,9 +246,40 @@ void MPU6050_ReadDatas_Proc(void) {
 }
 
 void AHRS_Geteuler(void) {
+    AHRS_Geteuler_WithDt(Sampling_Time);
+}
+
+bool MPU6050_Is_Calibrated(void) {
+    return (s_gyro_bias_calib_cnt >= GYRO_BIAS_CALIB_SAMPLES);
+}
+
+void Yaw_Reset(void) {
+    Yaw = 0.0f;
+    pitch2 = 0.0f;
+    roll2 = 0.0f;
+    mpu6050.Yaw = 0.0f;
+    // 关键：触发重新校准静止零偏，消除漂移
+    MPU6050_ResetBiasCalibration(); 
+}
+
+void AHRS_Geteuler_WithDt(float dt_s) {
+    if (dt_s <= 0.0f) {
+        dt_s = Sampling_Time;
+    } else if (dt_s > 0.20f) {
+        dt_s = 0.20f;
+    }
+
     MPU6050_ReadDatas_Proc();
-    Gyro_Z_Measeure = (mpu6050.Gyro_Average[2]) * 2000.0f / 32768.0f;
-    Yaw += Gyro_Z_Measeure * Sampling_Time;
+    float gyro_rate_dps = (mpu6050.Gyro_Average[2]) * 2000.0f / 32768.0f * GYRO_Z_SIGN;
+    s_gyro_z_lpf = s_gyro_z_lpf * 0.65f + gyro_rate_dps * 0.35f;
+    //加入死区
+    float final_gyro_rate = s_gyro_z_lpf;
+    if (final_gyro_rate >= -0.7f && final_gyro_rate <= 0.7f) {
+        final_gyro_rate = 0.0f; 
+    }
+    Gyro_Z_Measeure = final_gyro_rate;
+    Yaw += final_gyro_rate * dt_s;
+
     if (Yaw > 180.0f)  Yaw -= 360.0f;
     if (Yaw < -180.0f) Yaw += 360.0f;
     mpu6050.Yaw = Yaw;
