@@ -271,10 +271,10 @@ void AHRS_Geteuler_WithDt(float dt_s) {
 
     MPU6050_ReadDatas_Proc();
     float gyro_rate_dps = (mpu6050.Gyro_Average[2]) * 2000.0f / 32768.0f * GYRO_Z_SIGN;
-    s_gyro_z_lpf = s_gyro_z_lpf * 0.65f + gyro_rate_dps * 0.35f;
+    s_gyro_z_lpf = s_gyro_z_lpf * 0.3f + gyro_rate_dps * 0.7f;
     //加入死区
     float final_gyro_rate = s_gyro_z_lpf;
-    if (final_gyro_rate >= -0.7f && final_gyro_rate <= 0.7f) {
+    if (final_gyro_rate >= -0.5f && final_gyro_rate <= 0.5f) {
         final_gyro_rate = 0.0f; 
     }
     Gyro_Z_Measeure = final_gyro_rate;
