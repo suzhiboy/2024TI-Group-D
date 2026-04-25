@@ -202,6 +202,9 @@ void Control_Loop(void)
         case TASK_FINISHED:
             pid_speed_L.target = 0; pid_speed_R.target = 0;
             DL_GPIO_setPins(GPIOA, DL_GPIO_PIN_7);
+            // 任务完成后蜂鸣器PB1响，LEDPB22亮
+            DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_1);  // 蜂鸣器PB1响
+            DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_22); // LED PB22亮
             break;
     }
 
