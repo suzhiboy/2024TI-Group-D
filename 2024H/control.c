@@ -37,7 +37,9 @@ bool Is_On_CrossLine(void) {
 }
 
 void Trigger_Feedback(void) {
-    Feedback_Timer = 50; 
+    Feedback_Timer = 50;
+    DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_1);   // 蜂鸣器PB1响
+    DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_22);  // LED PB22亮
 }
 
 void Control_Init(void)
