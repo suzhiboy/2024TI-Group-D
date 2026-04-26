@@ -36,13 +36,13 @@ bool Is_On_CrossLine(void) {
     Sensor_Read_All(s);
     int count = 0;
     for(int i=0; i<8; i++) if(s[i] == 1) count++;
-    return (count >= 1); 
+    return (count >= 2); 
 }
 
 void Trigger_Feedback(void) {
-    Feedback_Timer = 50;
-    DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_1);   // 蜂鸣器PB1响
-    DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_22);  // LED PB22亮
+    Feedback_Timer = 100;  // 约1秒（10ms周期 * 100 = 1秒）
+    DL_GPIO_clearPins(GPIOB, DL_GPIO_PIN_1);   // 蜂鸣器PB1响（低电平触发）
+    DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_22);    // LED PB22亮（高电平触发）
 }
 
 void Control_Init(void)
@@ -69,10 +69,16 @@ void Control_Loop(void)
     filtered_L = filtered_L * 0.7f + (float)g_Encoder.speed_left * 0.3f;
     filtered_R = filtered_R * 0.7f + (float)g_Encoder.speed_right * 0.3f;
 
+    // 声光反馈处理
     if (Feedback_Timer > 0) {
-        DL_GPIO_setPins(GPIOA, DL_GPIO_PIN_7); Feedback_Timer--;
+        DL_GPIO_setPins(GPIOA, DL_GPIO_PIN_7); 
+        DL_GPIO_clearPins(GPIOB, DL_GPIO_PIN_1);   // 蜂鸣器响（低电平）
+        DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_22);    // LED亮（高电平）
+        Feedback_Timer--;
     } else if (Car_Mode != TASK_FINISHED) {
         DL_GPIO_clearPins(GPIOA, DL_GPIO_PIN_7);
+        DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_1);   // 关闭蜂鸣器（高电平）
+        DL_GPIO_clearPins(GPIOB, DL_GPIO_PIN_22); // 关闭LED（低电平）
     }
 
     switch (Car_Mode) 
@@ -98,8 +104,9 @@ void Control_Loop(void)
             pid_speed_L.target = base_speed + turn_out;
             pid_speed_R.target = base_speed - turn_out;
             if (g_Encoder.distance_cm >= 100.0f || Is_On_CrossLine()) {
-                Trigger_Feedback(); Car_Mode = TASK_FINISHED;
-                PID_Clear(&pid_speed_L); PID_Clear(&pid_speed_R);
+                Trigger_Feedback(); Car_Mode = TASK_FINISHED; 
+                PID_Clear(&pid_speed_L);
+                PID_Clear(&pid_speed_R);
             }
             break;
 
@@ -212,9 +219,8 @@ void Control_Loop(void)
         case TASK_FINISHED:
             pid_speed_L.target = 0; pid_speed_R.target = 0;
             DL_GPIO_setPins(GPIOA, DL_GPIO_PIN_7);
-            // 任务完成后蜂鸣器PB1响，LEDPB22亮
-            DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_1);  // 蜂鸣器PB1响
-            DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_22); // LED PB22亮
+            DL_GPIO_clearPins(GPIOB, DL_GPIO_PIN_1);   // 蜂鸣器PB1响（低电平触发）
+            DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_22);  // LED PB22亮（高电平触发）
             break;
     }
 
