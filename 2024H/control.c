@@ -7,6 +7,9 @@
 #include "main.h"
 #include <stdio.h>
 
+// 辅助宏：绝对值计算
+//#define absFloat(x) ((x) > 0 ? (x) : -(x))
+
 /* --- 控制器与状态变量 --- */
 PID_TypeDef pid_line;  
 PID_TypeDef pid_yaw;   
@@ -33,7 +36,7 @@ bool Is_On_CrossLine(void) {
     Sensor_Read_All(s);
     int count = 0;
     for(int i=0; i<8; i++) if(s[i] == 1) count++;
-    return (count >= 6); 
+    return (count >= 1); 
 }
 
 void Trigger_Feedback(void) {
@@ -44,7 +47,9 @@ void Control_Init(void)
 {
     Motor_Init();
     Encoder_Init(); 
-    PID_Init(&pid_line, 0.5f, 0.0f, 0.1f, 3.0f, -3.0f, 1.0f);
+    // 循迹 PID 优化参数 (增加积分项 Ki 解决不居中问题)
+    //PID_Init(&pid_line, 0.8f, 0.05f, 2.5f, 8.0f, -8.0f, 1.0f);
+    PID_Init(&pid_line, 1.5f, 0.05f, 3.5f, 8.0f,-8.0f, 4.0f);
     PID_Init(&pid_yaw, 3.0f, 0.02f, 1.0f, 10.0f, -10.0f, 2.0f);
     PID_Init(&pid_speed_L, 80.0f, 5.0f, 0.5f, 2000.0f, 0.0f, 1000.0f);
     PID_Init(&pid_speed_R, 80.0f, 5.0f, 0.5f, 2000.0f, 0.0f, 1000.0f);
@@ -72,6 +77,8 @@ void Control_Loop(void)
     {
         case TASK_IDLE: 
             pid_speed_L.target = 0; pid_speed_R.target = 0;
+            // 静态调参：在静止时也计算循迹 PID，使 VOFA data[2] 产生波形
+            //PID_Calc_Positional(&pid_line, Sensor_Get_Error());
             break;
 
         case TASK_CALIBRATING:
@@ -83,7 +90,8 @@ void Control_Loop(void)
             break;
 
         case TASK_1_AB_STRAIGHT:
-            base_speed = 8.0f; pid_yaw.target = 0.0f; 
+            base_speed = 12.0f; // 恢复原始速度
+            pid_yaw.target = 0.0f; 
             turn_out = PID_Calc_Positional(&pid_yaw, mpu6050.Yaw);
             pid_speed_L.target = base_speed + turn_out;
             pid_speed_R.target = base_speed - turn_out;
@@ -96,7 +104,7 @@ void Control_Loop(void)
         case TASK_2_ABCD_CIRCLE:
         case TASK_4_FOUR_LAPS:
             if (Current_Step == 0) { 
-                base_speed = 8.0f; pid_yaw.target = 0.0f;
+                base_speed = 15.0f; pid_yaw.target = 0.0f;
                 turn_out = PID_Calc_Positional(&pid_yaw, mpu6050.Yaw);
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
@@ -105,7 +113,7 @@ void Control_Loop(void)
                 }
             } 
             else if (Current_Step == 1) { 
-                base_speed = 7.0f;
+                base_speed = 12.0f;
                 turn_out = PID_Calc_Positional(&pid_line, Sensor_Get_Error());
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
@@ -114,7 +122,7 @@ void Control_Loop(void)
                 }
             }
             else if (Current_Step == 2) { 
-                base_speed = 8.0f; 
+                base_speed = 15.0f; 
                 float err = 180.0f - mpu6050.Yaw;
                 if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
                 pid_yaw.target = mpu6050.Yaw + err;
@@ -126,7 +134,7 @@ void Control_Loop(void)
                 }
             }
             else if (Current_Step == 3) { 
-                base_speed = 6.5f;
+                base_speed = 12.0f;
                 turn_out = PID_Calc_Positional(&pid_line, Sensor_Get_Error());
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
@@ -215,12 +223,12 @@ void Control_Loop(void)
 void Vofa_Send_Debug(void)
 {
     float data[6];
-    data[0] = pid_speed_L.target; 
-    data[1] = filtered_L;          
-    data[2] = pid_speed_R.target;  
-    data[3] = filtered_R;          
-    data[4] = mpu6050.Yaw;         
-    data[5] = pid_yaw.target;      
+    data[0] = 0.0F; 
+    data[1] = Sensor_Get_Error();        
+    data[2] = pid_line.output; // 转向输出力度  
+    data[3] = filtered_L;          
+    data[4] = filtered_R;         
+    data[5] = mpu6050.Yaw;    
 
     for(int i=0; i<6; i++) {
         uint8_t *p = (uint8_t *)&data[i];

@@ -90,7 +90,7 @@ int main(void)
     }
 }
 
-// 恢复您的原始排版
+// 恢复您的原始排版与原始变量
 void Debug_Sensors_Display(void)
 {
     char disp_buf[32]; 
@@ -101,7 +101,7 @@ void Debug_Sensors_Display(void)
     sprintf(disp_buf, "G:%.1f deg/s   ", Gyro_Z_Measeure);
     OLED_ShowString(0, 16, (uint8_t *)disp_buf, 16, 1);
 
-    sprintf(disp_buf, "L:%d R:%d      ", (int)filtered_L, (int)filtered_R);
+    sprintf(disp_buf, "L:%d R:%d   ", (int)g_Encoder.speed_left, (int)g_Encoder.speed_right);
     OLED_ShowString(0, 32, (uint8_t *)disp_buf, 16, 1);
 
     sprintf(disp_buf, "D:%.1f M:%d    ", g_Encoder.distance_cm, (int)Car_Mode);

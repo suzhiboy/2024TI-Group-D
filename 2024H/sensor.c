@@ -45,7 +45,7 @@ float Sensor_Get_Error(void)
     
     // 权值分配：根据传感器离中心线的距离赋予权重值
     // 权值越大，修正动作越剧烈
-    int weights[8] = {-30, -20, -10, -5, 5, 10, 20, 30};
+    int weights[8] = {30, 20, 10, 5, -5, -10, -20, -30};
     int weighted_sum = 0;
     int active_count = 0;
     
@@ -68,12 +68,12 @@ float Sensor_Get_Error(void)
     
     // 逻辑：如果刚才偏差很大（比如偏左 > 10），现在全白，说明线在左边飞掉了
     // 返回一个比正常范围略大的极值（如 35 或 -35），强制 PID 输出最大转向
-    if (last_valid_error > 5.0f) {
-        return 35.0f; // 刚才偏右，返回极大幅度引导左转寻线
-    }
-    else if (last_valid_error < -5.0f) {
-        return -35.0f; // 刚才偏左，返回极大幅度引导右转寻线
-    }
+    // if (last_valid_error > 5.0f) {
+    //     return 35.0f; // 刚才偏右，返回极大幅度引导左转寻线
+    // }
+    // else if (last_valid_error < -5.0f) {
+    //     return -35.0f; // 刚才偏左，返回极大幅度引导右转寻线
+    // }
     
     // 如果初始状态就是全白，或者正中心丢失（可能是断头线），返回 0
     return 0;
