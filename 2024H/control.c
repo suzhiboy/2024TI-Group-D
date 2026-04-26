@@ -7,9 +7,6 @@
 #include "main.h"
 #include <stdio.h>
 
-// 辅助宏：绝对值计算
-//#define absFloat(x) ((x) > 0 ? (x) : -(x))
-
 /* --- 控制器与状态变量 --- */
 PID_TypeDef pid_line;  
 PID_TypeDef pid_yaw;   
@@ -30,7 +27,6 @@ float filtered_R = 0;
 void Reset_Encoder_Distance(void) {
     Encoder_Clear(); 
 }
-
 bool Is_On_CrossLine(void) {
     uint8_t s[8];
     Sensor_Read_All(s);
@@ -40,9 +36,9 @@ bool Is_On_CrossLine(void) {
 }
 
 void Trigger_Feedback(void) {
-    Feedback_Timer = 50;
-    DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_1);   // 蜂鸣器PB1响
-    DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_22);  // LED PB22亮
+    Feedback_Timer = 100;  // 约1秒
+    DL_GPIO_clearPins(GPIOB, DL_GPIO_PIN_1);   // 蜂鸣器PB1响（低电平）
+    DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_22);    // LED PB22亮（高电平）
 }
 
 void Control_Init(void)
@@ -69,10 +65,16 @@ void Control_Loop(void)
     filtered_L = filtered_L * 0.7f + (float)g_Encoder.speed_left * 0.3f;
     filtered_R = filtered_R * 0.7f + (float)g_Encoder.speed_right * 0.3f;
 
+    // 声光反馈处理
     if (Feedback_Timer > 0) {
-        DL_GPIO_setPins(GPIOA, DL_GPIO_PIN_7); Feedback_Timer--;
+        DL_GPIO_setPins(GPIOA, DL_GPIO_PIN_7); 
+        DL_GPIO_clearPins(GPIOB, DL_GPIO_PIN_1);   // 蜂鸣器响（低电平）
+        DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_22);    // LED亮（高电平）
+        Feedback_Timer--;
     } else if (Car_Mode != TASK_FINISHED) {
         DL_GPIO_clearPins(GPIOA, DL_GPIO_PIN_7);
+        DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_1);   // 关闭蜂鸣器（高电平）
+        DL_GPIO_clearPins(GPIOB, DL_GPIO_PIN_22); // 关闭LED（低电平）
     }
 
     switch (Car_Mode) 
@@ -98,9 +100,9 @@ void Control_Loop(void)
             pid_speed_L.target = base_speed + turn_out;
             pid_speed_R.target = base_speed - turn_out;
             if (g_Encoder.distance_cm >= 100.0f || Is_On_CrossLine()) {
-                Trigger_Feedback(); Car_Mode = TASK_FINISHED;
-
-                PID_Clear(&pid_speed_L); PID_Clear(&pid_speed_R);
+                Trigger_Feedback(); Car_Mode = TASK_FINISHED; 
+                PID_Clear(&pid_speed_L);
+                PID_Clear(&pid_speed_R);
             }
             break;
 
@@ -203,56 +205,54 @@ void Control_Loop(void)
             break;
 
         case TASK_3_ACBD_DIAGONAL:
-            if (Current_Step == 0) { // A -> C (对角线, 38.7°)
+            if (Current_Step == 0) { // A -> C 对角线
                 base_speed = 9.0f; 
                 float target_angle = 38.7f;
                 float err = target_angle - mpu6050.Yaw;
                 if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
                 pid_yaw.target = mpu6050.Yaw + err;
-
                 turn_out = PID_Calc_Positional(&pid_yaw, mpu6050.Yaw);
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
-                // 距离 > 110cm 后才探测 C 点
-                if (g_Encoder.distance_cm > 110.0f && Is_On_CrossLine()) { 
+                // 离开 A 点 30cm 后才探测 C 点
+                if (g_Encoder.distance_cm > 30.0f && Is_On_CrossLine()) { 
                     Current_Step = 1; Reset_Encoder_Distance(); Trigger_Feedback();
                     PID_Clear(&pid_speed_L); PID_Clear(&pid_speed_R);
                 }
             }
-            else if (Current_Step == 1) { // C -> B (圆弧循迹)
+            else if (Current_Step == 1) { // C -> B 循迹
                 base_speed = 8.0f;
                 turn_out = PID_Calc_Positional(&pid_line, Sensor_Get_Error());
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
-                // 距离 > 100cm 后才探测 B 点
-                if (g_Encoder.distance_cm > 100.0f && Is_On_CrossLine()) { 
+                // 离开 C 点 30cm 后才探测 B 点
+                if (g_Encoder.distance_cm > 30.0f && Is_On_CrossLine()) { 
                     Current_Step = 2; Reset_Encoder_Distance(); Trigger_Feedback();
                     PID_Clear(&pid_speed_L); PID_Clear(&pid_speed_R);
                 }
             }
-            else if (Current_Step == 2) { // B -> D (对角线, 141.3°)
+            else if (Current_Step == 2) { // B -> D 对角线
                 base_speed = 9.0f; 
                 float target_angle = 141.3f;
                 float err = target_angle - mpu6050.Yaw;
                 if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
                 pid_yaw.target = mpu6050.Yaw + err;
-
                 turn_out = PID_Calc_Positional(&pid_yaw, mpu6050.Yaw);
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
-                // 距离 > 110cm 后才探测 D 点
-                if (g_Encoder.distance_cm > 110.0f && Is_On_CrossLine()) { 
+                // 离开 B 点 30cm 后才探测 D 点
+                if (g_Encoder.distance_cm > 30.0f && Is_On_CrossLine()) { 
                     Current_Step = 3; Reset_Encoder_Distance(); Trigger_Feedback();
                     PID_Clear(&pid_speed_L); PID_Clear(&pid_speed_R);
                 }
             }
-            else if (Current_Step == 3) { // D -> A (圆弧循迹)
+            else if (Current_Step == 3) { // D -> A 循迹
                 base_speed = 8.0f;
                 turn_out = PID_Calc_Positional(&pid_line, Sensor_Get_Error());
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
-                // 回到起点停车
-                if (g_Encoder.distance_cm > 100.0f && Is_On_CrossLine()) { 
+                // 回到起点 A 停车
+                if (g_Encoder.distance_cm > 30.0f && Is_On_CrossLine()) { 
                     Car_Mode = TASK_FINISHED; Trigger_Feedback();
                     PID_Clear(&pid_speed_L); PID_Clear(&pid_speed_R);
                 }
@@ -262,9 +262,8 @@ void Control_Loop(void)
         case TASK_FINISHED:
             pid_speed_L.target = 0; pid_speed_R.target = 0;
             DL_GPIO_setPins(GPIOA, DL_GPIO_PIN_7);
-            // 任务完成后蜂鸣器PB1响，LEDPB22亮
-            DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_1);  // 蜂鸣器PB1响
-            DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_22); // LED PB22亮
+            DL_GPIO_clearPins(GPIOB, DL_GPIO_PIN_1);   // 蜂鸣器PB1响（低电平触发）
+            DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_22);  // LED PB22亮（高电平触发）
             break;
     }
 
@@ -306,3 +305,4 @@ void Control_Reset(void)
     Current_Step = 0;
     Reset_Encoder_Distance();
 }
+           
