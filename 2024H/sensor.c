@@ -45,7 +45,7 @@ float Sensor_Get_Error(void)
     
     // 权值分配：根据传感器离中心线的距离赋予权重值
     // 权值越大，修正动作越剧烈
-    int weights[8] = {30, 20, 10, 5, -5, -10, -20, -30};
+    int weights[8] = {30, 20, 10, 5, -5, -10, -20, 0};
     int weighted_sum = 0;
     int active_count = 0;
     
