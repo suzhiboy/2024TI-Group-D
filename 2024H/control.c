@@ -36,7 +36,7 @@ bool Is_On_CrossLine(void) {
 }
 
 void Trigger_Feedback(void) {
-    Feedback_Timer = 100;  // 约1秒
+    Feedback_Timer = 5;  // 约 50ms
     DL_GPIO_clearPins(GPIOB, DL_GPIO_PIN_1);   // 蜂鸣器PB1响（低电平）
     DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_22);    // LED PB22亮（高电平）
 }
@@ -225,8 +225,8 @@ void Control_Loop(void)
                 turn_out = PID_Calc_Positional(&pid_line, Sensor_Get_Error());
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
-                // 离开 C 点 30cm 后才探测 B 点
-                if (g_Encoder.distance_cm > 30.0f && Is_On_CrossLine()) { 
+                // 仿照第二题优化：里程 > 70cm (考虑车长) 且角度接近 180 即认为出弯
+                if (g_Encoder.distance_cm > 70.0f && absFloat(mpu6050.Yaw) >= 150.0f) { 
                     Current_Step = 2; Reset_Encoder_Distance(); Trigger_Feedback();
                     PID_Clear(&pid_speed_L); PID_Clear(&pid_speed_R);
                 }
@@ -251,8 +251,8 @@ void Control_Loop(void)
                 turn_out = PID_Calc_Positional(&pid_line, Sensor_Get_Error());
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
-                // 回到起点 A 停车
-                if (g_Encoder.distance_cm > 30.0f && Is_On_CrossLine()) { 
+                // 回到起点 A：里程 > 70cm 且角度回正
+                if (g_Encoder.distance_cm > 60.0f && absFloat(mpu6050.Yaw) <= 30.0f) { 
                     Car_Mode = TASK_FINISHED; Trigger_Feedback();
                     PID_Clear(&pid_speed_L); PID_Clear(&pid_speed_R);
                 }
