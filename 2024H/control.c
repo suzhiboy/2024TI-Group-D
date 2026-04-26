@@ -166,7 +166,7 @@ void Control_Loop(void)
 
         case TASK_3_ACBD_DIAGONAL:
             if (Current_Step == 0) { 
-                base_speed = 8.0f; 
+                base_speed = 15.0f; 
                 float err = 38.7f - mpu6050.Yaw;
                 if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
                 pid_yaw.target = mpu6050.Yaw + err;
@@ -178,7 +178,7 @@ void Control_Loop(void)
                 }
             }
             else if (Current_Step == 1) { 
-                base_speed = 8.0f; 
+                base_speed = 12.0f; 
                 float err = -90.0f - mpu6050.Yaw;
                 if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
                 pid_yaw.target = mpu6050.Yaw + err;
@@ -190,7 +190,7 @@ void Control_Loop(void)
                 }
             }
             else if (Current_Step == 2) { 
-                base_speed = 8.0f; 
+                base_speed = 15.0f; 
                 float err = 141.3f - mpu6050.Yaw;
                 if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
                 pid_yaw.target = mpu6050.Yaw + err;
@@ -202,7 +202,7 @@ void Control_Loop(void)
                 }
             }
             else if (Current_Step == 3) { 
-                base_speed = 8.0f; 
+                base_speed = 12.0f; 
                 float err = -90.0f - mpu6050.Yaw;
                 if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
                 pid_yaw.target = mpu6050.Yaw + err;
