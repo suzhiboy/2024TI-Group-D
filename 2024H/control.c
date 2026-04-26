@@ -261,9 +261,11 @@ void Control_Loop(void)
 
         case TASK_FINISHED:
             pid_speed_L.target = 0; pid_speed_R.target = 0;
-            DL_GPIO_setPins(GPIOA, DL_GPIO_PIN_7);
-            DL_GPIO_clearPins(GPIOB, DL_GPIO_PIN_1);   // 蜂鸣器PB1响（低电平触发）
-            DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_22);  // LED PB22亮（高电平触发）
+            // 任务完成时也使用Feedback_Timer机制，蜂鸣器和LED会在1秒后自动关闭
+            if (Feedback_Timer == 0) {
+                // 只在第一次进入TASK_FINISHED时触发声光提示
+                Trigger_Feedback();
+            }
             break;
     }
 
