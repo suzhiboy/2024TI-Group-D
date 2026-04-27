@@ -259,7 +259,7 @@ void Yaw_Reset(void) {
     roll2 = 0.0f;
     mpu6050.Yaw = 0.0f;
     // 关键：触发重新校准静止零偏，消除漂移
-    MPU6050_ResetBiasCalibration(); 
+     
 }
 
 void AHRS_Geteuler_WithDt(float dt_s) {
@@ -274,7 +274,7 @@ void AHRS_Geteuler_WithDt(float dt_s) {
     s_gyro_z_lpf = s_gyro_z_lpf * 0.3f + gyro_rate_dps * 0.7f;
     //加入死区
     float final_gyro_rate = s_gyro_z_lpf;
-    if (final_gyro_rate >= -0.5f && final_gyro_rate <= 0.5f) {
+    if (final_gyro_rate >= -0.2f && final_gyro_rate <= 0.2f) {
         final_gyro_rate = 0.0f; 
     }
     Gyro_Z_Measeure = final_gyro_rate;

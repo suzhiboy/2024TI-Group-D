@@ -21,7 +21,7 @@ void Scan_Keys(void) {
     if (DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_3) == 0) {
         delay_ms(20); if (DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_3) == 0) {
             if (Car_Mode == TASK_IDLE || Car_Mode == TASK_FINISHED) {
-                Control_Reset(); Yaw_Reset(); g_target_task = TASK_1_AB_STRAIGHT; Car_Mode = TASK_CALIBRATING;
+                Control_Reset(); Yaw_Reset();MPU6050_ResetBiasCalibration(); g_target_task = TASK_1_AB_STRAIGHT; Car_Mode = TASK_CALIBRATING;
             } else { Car_Mode = TASK_IDLE; Control_Reset(); }
             while(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_3) == 0);
         }
@@ -29,7 +29,7 @@ void Scan_Keys(void) {
     if (DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_13) == 0) {
         delay_ms(20); if (DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_13) == 0) {
             if (Car_Mode == TASK_IDLE || Car_Mode == TASK_FINISHED) {
-                Control_Reset(); Yaw_Reset(); g_target_task = TASK_2_ABCD_CIRCLE; Car_Mode = TASK_CALIBRATING;
+                Control_Reset(); Yaw_Reset();MPU6050_ResetBiasCalibration(); g_target_task = TASK_2_ABCD_CIRCLE; Car_Mode = TASK_CALIBRATING;
             } else { Car_Mode = TASK_IDLE; Control_Reset(); }
             while(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_13) == 0);
         }
@@ -37,7 +37,7 @@ void Scan_Keys(void) {
     if (DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_12) == 0) {
         delay_ms(20); if (DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_12) == 0) {
             if (Car_Mode == TASK_IDLE || Car_Mode == TASK_FINISHED) {
-                Control_Reset(); Yaw_Reset(); g_target_task = TASK_3_ACBD_DIAGONAL; Car_Mode = TASK_CALIBRATING;
+                Control_Reset(); Yaw_Reset();MPU6050_ResetBiasCalibration(); g_target_task = TASK_3_ACBD_DIAGONAL; Car_Mode = TASK_CALIBRATING;
             } else { Car_Mode = TASK_IDLE; Control_Reset(); }
             while(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_12) == 0);
         }
@@ -45,7 +45,7 @@ void Scan_Keys(void) {
     if (DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_2) == 0) {
         delay_ms(20); if (DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_2) == 0) {
             if (Car_Mode == TASK_IDLE || Car_Mode == TASK_FINISHED) {
-                Control_Reset(); Yaw_Reset(); g_target_task = TASK_4_FOUR_LAPS; Car_Mode = TASK_CALIBRATING;
+                Control_Reset(); Yaw_Reset();MPU6050_ResetBiasCalibration(); g_target_task = TASK_4_FOUR_LAPS; Car_Mode = TASK_CALIBRATING;
             } else { Car_Mode = TASK_IDLE; Control_Reset(); }
             while(DL_GPIO_readPins(GPIOB, DL_GPIO_PIN_2) == 0);
         }
