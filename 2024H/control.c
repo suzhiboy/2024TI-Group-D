@@ -8,10 +8,9 @@
 #include <stdio.h>
 
 /* --- 控制器与状态变量 --- */
-PID_TypeDef pid_line; 
-PID_TypeDef pid_line4;
+PID_TypeDef pid_line;  
 PID_TypeDef pid_yaw;
-PID_TypeDef pid_yaw3;   
+PID_TypeDef pid_yaw34; 
 PID_TypeDef pid_speed_L;
 PID_TypeDef pid_speed_R;
 
@@ -64,15 +63,13 @@ void Control_Init(void)
 {
     Motor_Init();
     Encoder_Init(); 
-    
-    // 优化PID参数 - 增强转弯能力
-    PID_Init(&pid_line, 3.5f, 0.12f, 3.0f, 8.0f, -8.0f, 8.0f);    // 循迹环1
-    PID_Init(&pid_line4, 2.5f, 0.1f, 8.0f, 10.0f, -10.0f, 5.0f);    // 循迹环4
-    PID_Init(&pid_yaw, 2.0f, 0.03f, 3.0f, 25.0f, -25.0f, 15.0f);     // 角度环（降低Kp提高Kd，消除震荡）
-    PID_Init(&pid_yaw3, 5.0f, 0.03f, 5.0f, 25.0f, -25.0f, 15.0f);     // 角度环（降低Kp提高Kd，消除震荡）
-    PID_Init(&pid_speed_L, 80.0f, 5.0f, 0.5f, 2000.0f, 0.0f, 1000.0f);  // 左轮速度环
-    PID_Init(&pid_speed_R, 80.0f, 5.0f, 0.5f, 2000.0f, 0.0f, 1000.0f);  // 右轮速度环（增强右轮）
-    
+    // 循迹 PID 优化参数 (增加积分项 Ki 解决不居中问题)
+    //PID_Init(&pid_line, 0.8f, 0.05f, 2.5f, 8.0f, -8.0f, 1.0f);
+    PID_Init(&pid_line, 1.0f, 0.05f, 3.5f, 8.0f,-8.0f, 4.0f);
+    PID_Init(&pid_yaw, 3.0f, 0.02f, 1.0f, 10.0f, -10.0f, 2.0f);
+    PID_Init(&pid_yaw34, 1.5f, 0.0f, 3.5f, 5.0f, -5.0f, 0.0f);
+    PID_Init(&pid_speed_L, 80.0f, 5.0f, 0.5f, 2000.0f, 0.0f, 1000.0f);
+    PID_Init(&pid_speed_R, 80.0f, 5.0f, 0.5f, 2000.0f, 0.0f, 1000.0f);
     Control_Reset();
 }
 
@@ -93,11 +90,12 @@ void Control_Loop(void)
         DL_GPIO_clearPins(GPIOB, DL_GPIO_PIN_1);   // 蜂鸣器响（低电平）
         DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_22);    // LED亮（高电平）
         Feedback_Timer--;
-    } else if (Car_Mode != TASK_FINISHED) {
-        DL_GPIO_clearPins(GPIOA, DL_GPIO_PIN_7);
-        DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_1);   // 关闭蜂鸣器（高电平）
-        DL_GPIO_clearPins(GPIOB, DL_GPIO_PIN_22); // 关闭LED（低电平）
-    }
+    } else { 
+    // 去掉 else if 的条件，倒计时结束无条件关闭
+    DL_GPIO_clearPins(GPIOA, DL_GPIO_PIN_7);
+    DL_GPIO_setPins(GPIOB, DL_GPIO_PIN_1);   // 关闭蜂鸣器（高电平）
+    DL_GPIO_clearPins(GPIOB, DL_GPIO_PIN_22); // 关闭LED（低电平）
+}
 
     switch (Car_Mode) 
     {
@@ -170,70 +168,99 @@ void Control_Loop(void)
             }
             break;
 
-                      case TASK_4_FOUR_LAPS:
-            // 按照任务3（ACBD对角线）的路径行驶4圈 - 重新设计转弯逻辑
+        case TASK_4_FOUR_LAPS:
             if (Current_Step == 0) { // A -> C 对角线
-                base_speed = 8.0f;  // 适当提高速度
+                base_speed = 10.0f; 
                 float target_angle = 38.7f;
-                float err = normalize_angle_error(mpu6050.Yaw, target_angle);
-                pid_yaw.target = mpu6050.Yaw + err;
-                
-                // 角度控制为主，确保方向正确
-                turn_out = PID_Calc_Positional(&pid_yaw3, mpu6050.Yaw);
+                float err = target_angle - mpu6050.Yaw;
+                if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
+                pid_yaw34.target = mpu6050.Yaw + err;
+                turn_out = PID_Calc_Positional(&pid_yaw34, mpu6050.Yaw);
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
-                
-                // 对角线转弯：主要依靠传感器检测交叉点
-                if (g_Encoder.distance_cm > 40.0f && Is_On_CrossLine()) { 
+                // 离开 A 点 60cm 后才探测 C 点，防止误触发
+                if (g_Encoder.distance_cm > 60.0f && Is_On_CrossLine()) { 
                     Current_Step = 1; Reset_Encoder_Distance(); Trigger_Feedback();
+                    PID_Clear(&pid_speed_L); PID_Clear(&pid_speed_R);
                 }
             }
-            else if (Current_Step == 1) { // C -> B 垂直边（弧线循迹）
-                base_speed = 7.0f;
-                // 使用循迹控制，让车辆沿着弧线行驶
-                turn_out = PID_Calc_Positional(&pid_line4, Sensor_Get_Error());
+            else if (Current_Step == 1) { // C -> B 循迹
+                base_speed = 8.0f;
+                turn_out = PID_Calc_Positional(&pid_line, Sensor_Get_Error());
+                float current_err = Sensor_Get_Error();
+                // 当误差极大 (>= 20) 时，说明正在斜线入弯，或者触发了丢线记忆
+                if (current_err >= 20.0f || current_err <= -20.0f) {
+                    pid_line.Kp = 2.5f;       // 极其暴力的 P，往死里拽
+                    pid_line.out_max = 16.0f; // 放开限幅！允许输出 16
+                    pid_line.out_min = -16.0f;
+                }
+                    // 当误差较小 (< 20) 时，说明车头已经顺滑地贴在黑线上了
+                else {
+                    pid_line.Kp = 0.6f;       // 恢复温柔的 P，防止画龙
+                    pid_line.out_max = 6.0f;  // 收紧限幅，让它乖乖巡航
+                    pid_line.out_min = -6.0f;
+                }
+                
+                turn_out = PID_Calc_Positional(&pid_line, current_err);
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
-                
-                // 弧线行驶：当角度接近-90度时认为到达B点
-                if (mpu6050.Yaw <= -80.0f && mpu6050.Yaw >= -100.0f) { 
-                    Current_Step = 2; Reset_Encoder_Distance(); Trigger_Feedback(); 
+                // 里程 > 70cm 且角度接近 180 即认为出弯到达 B 点
+                if (g_Encoder.distance_cm > 60.0f && absFloat(mpu6050.Yaw) >= 143.0f) { 
+                    Current_Step = 2; Reset_Encoder_Distance(); Trigger_Feedback();
+                    PID_Clear(&pid_speed_L); PID_Clear(&pid_speed_R);
                 }
             }
             else if (Current_Step == 2) { // B -> D 对角线
-                base_speed = 8.0f;
+                base_speed = 10.0f; 
                 float target_angle = 141.3f;
-                float err = normalize_angle_error(mpu6050.Yaw, target_angle);
-                pid_yaw.target = mpu6050.Yaw + err;
-                
-                // 角度控制为主
-                turn_out = PID_Calc_Positional(&pid_yaw3, mpu6050.Yaw);
+                float err = target_angle - mpu6050.Yaw;
+                if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
+                pid_yaw34.target = mpu6050.Yaw + err;
+                turn_out = PID_Calc_Positional(&pid_yaw34, mpu6050.Yaw);
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
-                
-                // 对角线转弯：主要依靠传感器检测交叉点
-                if (g_Encoder.distance_cm > 40.0f && Is_On_CrossLine()) {
-                    Current_Step = 3; Reset_Encoder_Distance(); Trigger_Feedback(); 
+                // 离开 B 点 60cm 后才探测 D 点
+                if (g_Encoder.distance_cm > 60.0f && Is_On_CrossLine()) { 
+                    Current_Step = 3; Reset_Encoder_Distance(); Trigger_Feedback();
+                    PID_Clear(&pid_speed_L); PID_Clear(&pid_speed_R);
                 }
             }
-            else if (Current_Step == 3) { // D -> A 垂直边（弧线循迹）
-                base_speed = 7.0f;
-                // 使用循迹控制，让车辆沿着弧线行驶
-                turn_out = PID_Calc_Positional(&pid_line4, Sensor_Get_Error());
+            else if (Current_Step == 3) { // D -> A 循迹
+                base_speed = 8.0f;
+                turn_out = PID_Calc_Positional(&pid_line, Sensor_Get_Error());
+                float current_err = Sensor_Get_Error();
+                // 当误差极大 (>= 20) 时，说明正在斜线入弯，或者触发了丢线记忆
+                if (current_err >= 20.0f || current_err <= -20.0f) {
+                    pid_line.Kp = 2.5f;       // 极其暴力的 P，往死里拽
+                    pid_line.out_max = 16.0f; // 放开限幅！允许输出 16
+                    pid_line.out_min = -16.0f;
+                }
+                    // 当误差较小 (< 20) 时，说明车头已经顺滑地贴在黑线上了
+                else {
+                    pid_line.Kp = 0.6f;       // 恢复温柔的 P，防止画龙
+                    pid_line.out_max = 6.0f;  // 收紧限幅，让它乖乖巡航
+                    pid_line.out_min = -6.0f;
+                }
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
-                
-                // 弧线行驶：当角度接近0度时认为回到A点
-                if (mpu6050.Yaw >= -10.0f && mpu6050.Yaw <= 10.0f) { 
+                // 回到起点 A：里程 > 60cm 且角度回正
+                if (g_Encoder.distance_cm > 60.0f && absFloat(mpu6050.Yaw) <= 8.0f) { 
                     Trigger_Feedback(); 
-                    Lap_Counter++;
-                    if (Lap_Counter >= 4) { 
-                        Car_Mode = TASK_FINISHED; Lap_Counter = 0; 
-                        PID_Clear(&pid_speed_L); PID_Clear(&pid_speed_R);
+                    Lap_Counter++; // 记录圈数
+                    
+                    if (Lap_Counter >= 4) { // 跑完4圈，结束任务
+                        Car_Mode = TASK_FINISHED; 
+                        Lap_Counter = 0; 
+                    } else { // 还没跑完，进入下一圈
+                        Current_Step = 0; 
+                        Reset_Encoder_Distance(); 
+                        
+                        // 【关键修改】：因为对角线依赖绝对角度 (38.7 和 141.3)
+                        // 跑完一圈后陀螺仪一定有漂移误差。必须在这里将当前车头朝向重新归零！
+                        // extern void Yaw_Reset(void); 
+                        // Yaw_Reset(); 
                     }
-                    else { 
-                        Current_Step = 0; Reset_Encoder_Distance(); 
-                    }
+                    PID_Clear(&pid_speed_L); PID_Clear(&pid_speed_R);
                 }
             }
             break;
@@ -244,11 +271,12 @@ void Control_Loop(void)
                 float target_angle = 38.7f;
                 float err = target_angle - mpu6050.Yaw;
                 if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
-                pid_yaw.target = 38.7f+err;
-                turn_out = PID_Calc_Positional(&pid_yaw3, mpu6050.Yaw);
+                pid_yaw34.target = mpu6050.Yaw + err;
+                turn_out = PID_Calc_Positional(&pid_yaw34, mpu6050.Yaw);
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
-                if (g_Encoder.distance_cm > 30.0f && Is_On_CrossLine()) { 
+                // 离开 A 点 30cm 后才探测 C 点
+                if (g_Encoder.distance_cm > 60.0f && Is_On_CrossLine()) { 
                     Current_Step = 1; Reset_Encoder_Distance(); Trigger_Feedback();
                     PID_Clear(&pid_speed_L); PID_Clear(&pid_speed_R);
                 }
@@ -268,12 +296,13 @@ void Control_Loop(void)
                 float target_angle = 141.3f;
                 float err = target_angle - mpu6050.Yaw;
                 if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
-                pid_yaw.target = mpu6050.Yaw + err;
-                turn_out = PID_Calc_Positional(&pid_yaw3, mpu6050.Yaw);
+                pid_yaw34.target = mpu6050.Yaw + err;
+                turn_out = PID_Calc_Positional(&pid_yaw34, mpu6050.Yaw);
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
-                if (g_Encoder.distance_cm > 30.0f && Is_On_CrossLine()) { 
-                    Current_Step = 3; Reset_Encoder_Distance(); Trigger_Feedback(); 
+                // 离开 B 点 60cm 后才探测 D 点
+                if (g_Encoder.distance_cm > 60.0f && Is_On_CrossLine()) { 
+                    Current_Step = 3; Reset_Encoder_Distance(); Trigger_Feedback();
                     PID_Clear(&pid_speed_L); PID_Clear(&pid_speed_R);
                 }
             }
@@ -292,7 +321,8 @@ void Control_Loop(void)
         case TASK_FINISHED:
             pid_speed_L.target = 0; pid_speed_R.target = 0;
             if (Feedback_Timer == 0) {
-                Trigger_Feedback();
+                // 只在第一次进入TASK_FINISHED时触发声光提示
+               
             }
             break;
     }
@@ -328,6 +358,7 @@ void Control_Reset(void)
 {
     PID_Clear(&pid_line);
     PID_Clear(&pid_yaw);
+    PID_Clear(&pid_yaw34);
     PID_Clear(&pid_speed_L);
     PID_Clear(&pid_speed_R);
     Set_Motor_Speed_Left(0);
