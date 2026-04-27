@@ -242,8 +242,8 @@ void Control_Loop(void)
                         
                         // 【关键修改】：因为对角线依赖绝对角度 (38.7 和 141.3)
                         // 跑完一圈后陀螺仪一定有漂移误差。必须在这里将当前车头朝向重新归零！
-                        extern void Yaw_Reset(void); 
-                        Yaw_Reset(); 
+                        // extern void Yaw_Reset(void); 
+                        // Yaw_Reset(); 
                     }
                     PID_Clear(&pid_speed_L); PID_Clear(&pid_speed_R);
                 }
