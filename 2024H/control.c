@@ -8,7 +8,8 @@
 #include <stdio.h>
 
 /* --- 控制器与状态变量 --- */
-PID_TypeDef pid_line;  
+PID_TypeDef pid_line12;
+PID_TypeDef pid_line34;  
 PID_TypeDef pid_yaw;
 PID_TypeDef pid_yaw34; 
 PID_TypeDef pid_speed_L;
@@ -65,8 +66,9 @@ void Control_Init(void)
     Encoder_Init(); 
     // 循迹 PID 优化参数 (增加积分项 Ki 解决不居中问题)
     //PID_Init(&pid_line, 0.8f, 0.05f, 2.5f, 8.0f, -8.0f, 1.0f);
-    PID_Init(&pid_line, 1.0f, 0.05f, 3.5f, 8.0f,-8.0f, 4.0f);
-    PID_Init(&pid_yaw, 3.0f, 0.02f, 1.0f, 10.0f, -10.0f, 2.0f);
+    PID_Init(&pid_line12, 1.0f, 0.05f, 1.0f, 10.0f,-10.0f, 8.0f);
+    PID_Init(&pid_line34, 1.0f, 0.05f, 3.5f, 8.0f,-8.0f, 4.0f);
+    PID_Init(&pid_yaw, 1.5f, 0.02f, 1.0f, 10.0f, -10.0f, 2.0f);
     PID_Init(&pid_yaw34, 1.5f, 0.0f, 3.5f, 5.0f, -5.0f, 0.0f);
     PID_Init(&pid_speed_L, 80.0f, 5.0f, 0.5f, 2000.0f, 0.0f, 1000.0f);
     PID_Init(&pid_speed_R, 80.0f, 5.0f, 0.5f, 2000.0f, 0.0f, 1000.0f);
@@ -135,8 +137,8 @@ void Control_Loop(void)
                 }
             } 
             else if (Current_Step == 1) { // B -> C (弧线循迹)
-                base_speed = 12.0f;
-                turn_out = PID_Calc_Positional(&pid_line, Sensor_Get_Error());
+                base_speed = 9.0f;
+                turn_out = PID_Calc_Positional(&pid_line12, Sensor_Get_Error());
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
                 if (absFloat(mpu6050.Yaw) >= 170.0f) { 
@@ -156,8 +158,8 @@ void Control_Loop(void)
                 }
             }
             else if (Current_Step == 3) { // D -> A (弧线循迹)
-                base_speed = 12.0f;
-                turn_out = PID_Calc_Positional(&pid_line, Sensor_Get_Error());
+                base_speed = 9.0f;
+                turn_out = PID_Calc_Positional(&pid_line12, Sensor_Get_Error());
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
                 if (absFloat(mpu6050.Yaw) <= 10.0f) { 
@@ -186,22 +188,22 @@ void Control_Loop(void)
             }
             else if (Current_Step == 1) { // C -> B 循迹
                 base_speed = 8.0f;
-                turn_out = PID_Calc_Positional(&pid_line, Sensor_Get_Error());
+                turn_out = PID_Calc_Positional(&pid_line34, Sensor_Get_Error());
                 float current_err = Sensor_Get_Error();
                 // 当误差极大 (>= 20) 时，说明正在斜线入弯，或者触发了丢线记忆
                 if (current_err >= 20.0f || current_err <= -20.0f) {
-                    pid_line.Kp = 2.5f;       // 极其暴力的 P，往死里拽
-                    pid_line.out_max = 16.0f; // 放开限幅！允许输出 16
-                    pid_line.out_min = -16.0f;
+                    pid_line34.Kp = 2.5f;       // 极其暴力的 P，往死里拽
+                    pid_line34.out_max = 16.0f; // 放开限幅！允许输出 16
+                    pid_line34.out_min = -16.0f;
                 }
                     // 当误差较小 (< 20) 时，说明车头已经顺滑地贴在黑线上了
                 else {
-                    pid_line.Kp = 0.6f;       // 恢复温柔的 P，防止画龙
-                    pid_line.out_max = 6.0f;  // 收紧限幅，让它乖乖巡航
-                    pid_line.out_min = -6.0f;
+                    pid_line34.Kp = 0.6f;       // 恢复温柔的 P，防止画龙
+                    pid_line34.out_max = 6.0f;  // 收紧限幅，让它乖乖巡航
+                    pid_line34.out_min = -6.0f;
                 }
                 
-                turn_out = PID_Calc_Positional(&pid_line, current_err);
+                turn_out = PID_Calc_Positional(&pid_line34, current_err);
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
                 // 里程 > 70cm 且角度接近 180 即认为出弯到达 B 点
@@ -227,19 +229,19 @@ void Control_Loop(void)
             }
             else if (Current_Step == 3) { // D -> A 循迹
                 base_speed = 8.0f;
-                turn_out = PID_Calc_Positional(&pid_line, Sensor_Get_Error());
+                turn_out = PID_Calc_Positional(&pid_line34, Sensor_Get_Error());
                 float current_err = Sensor_Get_Error();
                 // 当误差极大 (>= 20) 时，说明正在斜线入弯，或者触发了丢线记忆
                 if (current_err >= 20.0f || current_err <= -20.0f) {
-                    pid_line.Kp = 2.5f;       // 极其暴力的 P，往死里拽
-                    pid_line.out_max = 16.0f; // 放开限幅！允许输出 16
-                    pid_line.out_min = -16.0f;
+                    pid_line34.Kp = 2.5f;       // 极其暴力的 P，往死里拽
+                    pid_line34.out_max = 16.0f; // 放开限幅！允许输出 16
+                    pid_line34.out_min = -16.0f;
                 }
                     // 当误差较小 (< 20) 时，说明车头已经顺滑地贴在黑线上了
                 else {
-                    pid_line.Kp = 0.6f;       // 恢复温柔的 P，防止画龙
-                    pid_line.out_max = 6.0f;  // 收紧限幅，让它乖乖巡航
-                    pid_line.out_min = -6.0f;
+                    pid_line34.Kp = 0.6f;       // 恢复温柔的 P，防止画龙
+                    pid_line34.out_max = 6.0f;  // 收紧限幅，让它乖乖巡航
+                    pid_line34.out_min = -6.0f;
                 }
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
@@ -267,7 +269,7 @@ void Control_Loop(void)
 
         case TASK_3_ACBD_DIAGONAL:
             if (Current_Step == 0) { // A -> C 对角线
-                base_speed = 15.0f; 
+                base_speed = 10.0f; 
                 float target_angle = 38.7f;
                 float err = target_angle - mpu6050.Yaw;
                 if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
@@ -283,16 +285,29 @@ void Control_Loop(void)
             }
             else if (Current_Step == 1) { // C -> B 循迹
                 base_speed = 8.0f;
-                turn_out = PID_Calc_Positional(&pid_line, Sensor_Get_Error());
+                float current_err = Sensor_Get_Error();
+                // 当误差极大 (>= 20) 时，说明正在斜线入弯，或者触发了丢线记忆
+                if (current_err >= 20.0f || current_err <= -20.0f) {
+                    pid_line34.Kp = 2.5f;       // 极其暴力的 P，往死里拽
+                    pid_line34.out_max = 16.0f; // 放开限幅！允许输出 16
+                    pid_line34.out_min = -16.0f;
+                }
+                    // 当误差较小 (< 20) 时，说明车头已经顺滑地贴在黑线上了
+                else {
+                    pid_line34.Kp = 1.0f;       // 恢复温柔的 P，防止画龙
+                    pid_line34.out_max = 6.0f;  // 收紧限幅，让它乖乖巡航
+                    pid_line34.out_min = -6.0f;
+                }
+                turn_out = PID_Calc_Positional(&pid_line34, Sensor_Get_Error());
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
-                if (g_Encoder.distance_cm > 70.0f && absFloat(mpu6050.Yaw) >= 150.0f) { 
+                if (g_Encoder.distance_cm > 63.0f && absFloat(mpu6050.Yaw) >= 143.0f) { 
                     Current_Step = 2; Reset_Encoder_Distance(); Trigger_Feedback();
                     PID_Clear(&pid_speed_L); PID_Clear(&pid_speed_R);
                 }
             }
             else if (Current_Step == 2) { // B -> D 对角线
-                base_speed = 15.0f; 
+                base_speed = 10.0f; 
                 float target_angle = 141.3f;
                 float err = target_angle - mpu6050.Yaw;
                 if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
@@ -308,10 +323,23 @@ void Control_Loop(void)
             }
             else if (Current_Step == 3) { // D -> A 循迹
                 base_speed = 8.0f;
-                turn_out = PID_Calc_Positional(&pid_line, Sensor_Get_Error());
+                float current_err = Sensor_Get_Error();
+                // 当误差极大 (>= 20) 时，说明正在斜线入弯，或者触发了丢线记忆
+                if (current_err >= 20.0f || current_err <= -20.0f) {
+                    pid_line34.Kp = 2.5f;       // 极其暴力的 P，往死里拽
+                    pid_line34.out_max = 16.0f; // 放开限幅！允许输出 16
+                    pid_line34.out_min = -16.0f;
+                }
+                    // 当误差较小 (< 20) 时，说明车头已经顺滑地贴在黑线上了
+                else {
+                    pid_line34.Kp = 1.0f;       // 恢复温柔的 P，防止画龙
+                    pid_line34.out_max = 6.0f;  // 收紧限幅，让它乖乖巡航
+                    pid_line34.out_min = -6.0f;
+                }
+                turn_out = PID_Calc_Positional(&pid_line34, current_err);
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
-                if (g_Encoder.distance_cm > 70.0f && absFloat(mpu6050.Yaw) <= 30.0f) { 
+                if (g_Encoder.distance_cm > 60.0f && absFloat(mpu6050.Yaw) <= 30.0f) { 
                     Trigger_Feedback(); Car_Mode = TASK_FINISHED; 
                     PID_Clear(&pid_speed_L); PID_Clear(&pid_speed_R);
                 }
@@ -339,7 +367,7 @@ void Vofa_Send_Debug(void)
     float data[6];
     data[0] = 0.0F; 
     data[1] = Sensor_Get_Error();        
-    data[2] = pid_line.output;
+    data[2] = pid_line34.output;
     data[3] = filtered_L;          
     data[4] = filtered_R;         
     data[5] = mpu6050.Yaw;    
@@ -356,7 +384,8 @@ void Vofa_Send_Debug(void)
 
 void Control_Reset(void)
 {
-    PID_Clear(&pid_line);
+    PID_Clear(&pid_line12);
+    PID_Clear(&pid_line34);
     PID_Clear(&pid_yaw);
     PID_Clear(&pid_yaw34);
     PID_Clear(&pid_speed_L);

@@ -14,8 +14,10 @@
 #define TASK_FINISHED           100
 
 /* --- 控制器外部声明 --- */
-extern PID_TypeDef pid_line;  
-extern PID_TypeDef pid_yaw;   
+extern PID_TypeDef pid_line12;
+extern PID_TypeDef pid_line34;
+extern PID_TypeDef pid_yaw;
+extern PID_TypeDef pid_yaw34;
 extern PID_TypeDef pid_speed_L;
 extern PID_TypeDef pid_speed_R;
 extern uint8_t Car_Mode;
