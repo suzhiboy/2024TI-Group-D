@@ -36,7 +36,7 @@ bool Is_On_CrossLine(void) {
     int count = 0;
     for(int i=0; i<8; i++) if(s[i] == 1) count++;
     
-    return (count >= 2); 
+    return (count >= 1); 
 }
 // 角度归一化函数
 float normalize_angle_error(float current, float target) {
@@ -66,7 +66,7 @@ void Control_Init(void)
     Encoder_Init(); 
     // 循迹 PID 优化参数 (增加积分项 Ki 解决不居中问题)
     //PID_Init(&pid_line, 0.8f, 0.05f, 2.5f, 8.0f, -8.0f, 1.0f);
-    PID_Init(&pid_line12, 1.0f, 0.05f, 1.0f, 10.0f,-10.0f, 8.0f);
+    PID_Init(&pid_line12, 0.7f, 0.05f, 0.5f, 10.0f,-10.0f, 8.0f);
     PID_Init(&pid_line34, 1.0f, 0.05f, 3.5f, 8.0f,-8.0f, 4.0f);
     PID_Init(&pid_yaw, 1.5f, 0.02f, 1.0f, 10.0f, -10.0f, 2.0f);
     PID_Init(&pid_yaw34, 1.5f, 0.0f, 3.5f, 5.0f, -5.0f, 0.0f);
@@ -132,7 +132,7 @@ void Control_Loop(void)
                 turn_out = PID_Calc_Positional(&pid_yaw, mpu6050.Yaw);
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
-                if (g_Encoder.distance_cm >= 100.0f || Is_On_CrossLine()) {
+                if (g_Encoder.distance_cm >= 95.0f || Is_On_CrossLine()) {
                     Current_Step = 1; Reset_Encoder_Distance(); Trigger_Feedback();
                 }
             } 
@@ -141,7 +141,7 @@ void Control_Loop(void)
                 turn_out = PID_Calc_Positional(&pid_line12, Sensor_Get_Error());
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
-                if (absFloat(mpu6050.Yaw) >= 170.0f) { 
+                if (absFloat(mpu6050.Yaw) >= 160.0f || g_Encoder.distance_cm > 100.0f) { 
                     Current_Step = 2; Reset_Encoder_Distance(); Trigger_Feedback();
                 }
             }
@@ -162,7 +162,7 @@ void Control_Loop(void)
                 turn_out = PID_Calc_Positional(&pid_line12, Sensor_Get_Error());
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
-                if (absFloat(mpu6050.Yaw) <= 10.0f) { 
+                if (absFloat(mpu6050.Yaw) <= 20.0f || g_Encoder.distance_cm > 95.0f) { 
                     Trigger_Feedback(); 
                     Car_Mode = TASK_FINISHED; 
                     PID_Clear(&pid_speed_L); PID_Clear(&pid_speed_R);
@@ -172,7 +172,7 @@ void Control_Loop(void)
 
         case TASK_4_FOUR_LAPS:
             if (Current_Step == 0) { // A -> C 对角线
-                base_speed = 10.0f; 
+                base_speed = 13.0f; 
                 float target_angle = 38.7f;
                 float err = target_angle - mpu6050.Yaw;
                 if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
@@ -187,7 +187,7 @@ void Control_Loop(void)
                 }
             }
             else if (Current_Step == 1) { // C -> B 循迹
-                base_speed = 8.0f;
+                base_speed = 12.0f;//8
                 turn_out = PID_Calc_Positional(&pid_line34, Sensor_Get_Error());
                 float current_err = Sensor_Get_Error();
                 // 当误差极大 (>= 20) 时，说明正在斜线入弯，或者触发了丢线记忆
@@ -213,7 +213,7 @@ void Control_Loop(void)
                 }
             }
             else if (Current_Step == 2) { // B -> D 对角线
-                base_speed = 10.0f; 
+                base_speed = 13.0f; 
                 float target_angle = 141.3f;
                 float err = target_angle - mpu6050.Yaw;
                 if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
@@ -228,7 +228,7 @@ void Control_Loop(void)
                 }
             }
             else if (Current_Step == 3) { // D -> A 循迹
-                base_speed = 8.0f;
+                base_speed = 12.0f;//8
                 turn_out = PID_Calc_Positional(&pid_line34, Sensor_Get_Error());
                 float current_err = Sensor_Get_Error();
                 // 当误差极大 (>= 20) 时，说明正在斜线入弯，或者触发了丢线记忆
@@ -246,7 +246,7 @@ void Control_Loop(void)
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
                 // 回到起点 A：里程 > 60cm 且角度回正
-                if (g_Encoder.distance_cm > 60.0f && absFloat(mpu6050.Yaw) <= 8.0f) { 
+                if (g_Encoder.distance_cm > 60.0f || absFloat(mpu6050.Yaw) <= 8.0f) { 
                     Trigger_Feedback(); 
                     Lap_Counter++; // 记录圈数
                     
