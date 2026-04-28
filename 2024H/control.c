@@ -172,8 +172,12 @@ void Control_Loop(void)
 
         case TASK_4_FOUR_LAPS:
             if (Current_Step == 0) { // A -> C 对角线
-                base_speed = 13.0f; 
+                base_speed = 14.0f; 
                 float target_angle = 38.7f;
+                if (g_Encoder.distance_cm > 60.0f) {
+                    target_angle=20.0f;
+                    base_speed=10.0f;
+                }
                 float err = target_angle - mpu6050.Yaw;
                 if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
                 pid_yaw34.target = mpu6050.Yaw + err;
@@ -187,7 +191,7 @@ void Control_Loop(void)
                 }
             }
             else if (Current_Step == 1) { // C -> B 循迹
-                base_speed = 12.0f;//8
+                base_speed = 13.0f;//8
                 turn_out = PID_Calc_Positional(&pid_line34, Sensor_Get_Error());
                 float current_err = Sensor_Get_Error();
                 // 当误差极大 (>= 20) 时，说明正在斜线入弯，或者触发了丢线记忆
@@ -213,8 +217,12 @@ void Control_Loop(void)
                 }
             }
             else if (Current_Step == 2) { // B -> D 对角线
-                base_speed = 13.0f; 
+                base_speed = 14.0f; 
                 float target_angle = 141.3f;
+                if (g_Encoder.distance_cm > 60.0f) {
+                    target_angle=160.0f;
+                    base_speed=10.0f;
+                }
                 float err = target_angle - mpu6050.Yaw;
                 if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
                 pid_yaw34.target = mpu6050.Yaw + err;
@@ -228,7 +236,7 @@ void Control_Loop(void)
                 }
             }
             else if (Current_Step == 3) { // D -> A 循迹
-                base_speed = 12.0f;//8
+                base_speed = 13.0f;//8
                 turn_out = PID_Calc_Positional(&pid_line34, Sensor_Get_Error());
                 float current_err = Sensor_Get_Error();
                 // 当误差极大 (>= 20) 时，说明正在斜线入弯，或者触发了丢线记忆
@@ -271,6 +279,10 @@ void Control_Loop(void)
             if (Current_Step == 0) { // A -> C 对角线
                 base_speed = 10.0f; 
                 float target_angle = 38.7f;
+                if (g_Encoder.distance_cm > 60.0f) {
+                    target_angle=20.0f;
+                    base_speed=10.0f;
+                }
                 float err = target_angle - mpu6050.Yaw;
                 if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
                 pid_yaw34.target = mpu6050.Yaw + err;
@@ -301,7 +313,7 @@ void Control_Loop(void)
                 turn_out = PID_Calc_Positional(&pid_line34, Sensor_Get_Error());
                 pid_speed_L.target = base_speed + turn_out;
                 pid_speed_R.target = base_speed - turn_out;
-                if (g_Encoder.distance_cm > 63.0f && absFloat(mpu6050.Yaw) >= 143.0f) { 
+                if (g_Encoder.distance_cm > 57.0f && absFloat(mpu6050.Yaw) >= 141.0f) { 
                     Current_Step = 2; Reset_Encoder_Distance(); Trigger_Feedback();
                     PID_Clear(&pid_speed_L); PID_Clear(&pid_speed_R);
                 }
@@ -309,6 +321,10 @@ void Control_Loop(void)
             else if (Current_Step == 2) { // B -> D 对角线
                 base_speed = 10.0f; 
                 float target_angle = 141.3f;
+                if (g_Encoder.distance_cm > 60.0f) {
+                    target_angle=160.0f;
+                    base_speed=10.0f;
+                }
                 float err = target_angle - mpu6050.Yaw;
                 if (err > 180.0f) err -= 360.0f; else if (err < -180.0f) err += 360.0f;
                 pid_yaw34.target = mpu6050.Yaw + err;
